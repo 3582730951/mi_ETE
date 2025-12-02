@@ -1102,7 +1102,8 @@ void QtClientWindow::ApplyTheme()
         QPushButton#SidebarToggle, QPushButton#SettingsToggle { background: transparent; color: #cbd5e1; border: 1px solid %4; padding: 8px 10px; }
         QPushButton#SidebarToggle:hover, QPushButton#SettingsToggle:hover { background: %4; }
         QListWidget { background: %3; border: 1px solid %4; border-radius: 8px; color: %2; }
-        QListWidget::item:selected { background: %4; }
+        QListWidget::item { padding: 6px; }
+        QListWidget::item:selected { background: %5; color: #ffffff; }
         QLineEdit, QPlainTextEdit, QComboBox, QSpinBox {
             background: %3;
             color: %2;
@@ -3233,6 +3234,7 @@ void QtClientWindow::BootstrapSessionList()
     feedList_->clear();
     auto self = new QListWidgetItem(QStringLiteral("会话 自己 · 在线"), feedList_);
     self->setForeground(QColor("#22c55e"));
+    self->setData(Qt::UserRole, 0);
     feedList_->addItem(self);
     sessionItems_[QStringLiteral("self")] = self;
     lastSeen_[QStringLiteral("self")] = QDateTime::currentDateTime();
@@ -3245,6 +3247,7 @@ void QtClientWindow::BootstrapSessionList()
         const QString peerId = QString::number(targetSpin_->value());
         auto* peer = new QListWidgetItem(QStringLiteral("会话 %1 · 待激活").arg(peerId), feedList_);
         peer->setForeground(QColor("#94a3b8"));
+        peer->setData(Qt::UserRole, 0);
         sessionItems_[peerId] = peer;
         feedList_->addItem(peer);
     }
@@ -3262,9 +3265,12 @@ void QtClientWindow::OnPresenceTick()
         {
             QListWidgetItem* item = itemIt->second;
             const bool online = secs <= onlineWindow;
-            item->setText(QStringLiteral("会话 %1 · %2")
-                              .arg(it->first, online ? QStringLiteral("在线") : QStringLiteral("离线")));
-            item->setForeground(online ? QColor("#22c55e") : QColor("#64748b"));
+            const int unread = unreadCount_[it->first];
+            const QString badge = unread > 0 ? QStringLiteral(" · 未读 %1").arg(unread) : QString();
+            item->setText(QStringLiteral("会话 %1 · %2%3")
+                              .arg(it->first, online ? QStringLiteral("在线") : QStringLiteral("离线"), badge));
+            item->setForeground(unread > 0 ? QColor("#ef4444") : (online ? QColor("#22c55e") : QColor("#64748b")));
+            item->setData(Qt::UserRole, unread);
         }
     }
 }
