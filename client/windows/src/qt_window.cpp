@@ -332,7 +332,7 @@ void QtClientWindow::BuildUi()
 
     navRail_ = new QFrame(this);
     navRail_->setObjectName(QStringLiteral("NavRail"));
-    navRail_->setFixedWidth(56);
+    navRail_->setFixedWidth(52);
     auto* navLayout = new QVBoxLayout(navRail_);
     navLayout->setContentsMargins(8, 12, 8, 12);
     navLayout->setSpacing(8);
@@ -715,6 +715,16 @@ void QtClientWindow::BuildUi()
     headerActionsLayout_->addWidget(screenShareButton_);
     headerActionsLayout_->addWidget(fileActionButton_);
     headerActionsLayout_->addWidget(moreActionButton_);
+    QPushButton* chatMinButton = new QPushButton(QStringLiteral("—"), this);
+    chatMinButton->setObjectName(QStringLiteral("GhostButton"));
+    chatMinButton->setFixedSize(24, 24);
+    connect(chatMinButton, &QPushButton::clicked, this, [this]() { showMinimized(); });
+    QPushButton* chatCloseButton = new QPushButton(QStringLiteral("×"), this);
+    chatCloseButton->setObjectName(QStringLiteral("GhostButton"));
+    chatCloseButton->setFixedSize(24, 24);
+    connect(chatCloseButton, &QPushButton::clicked, this, [this]() { close(); });
+    headerActionsLayout_->addWidget(chatMinButton);
+    headerActionsLayout_->addWidget(chatCloseButton);
     headerRow->addLayout(headerActionsLayout_);
     formLayout->addLayout(headerRow);
 
@@ -1005,10 +1015,18 @@ void QtClientWindow::BuildUi()
     auto root = new QHBoxLayout(this);
     root->addWidget(mainStack_);
     setWindowFlags(Qt::FramelessWindowHint | Qt::Window);
-    setLayout(root);
+    setAttribute(Qt::WA_TranslucentBackground, true);
+    auto* rootFrame = new QFrame(this);
+    rootFrame->setObjectName(QStringLiteral("RootCard"));
+    auto* rootLayout = new QVBoxLayout(rootFrame);
+    rootLayout->setContentsMargins(6, 6, 6, 6);
+    rootLayout->addLayout(root);
+    auto* outer = new QVBoxLayout(this);
+    outer->setContentsMargins(0, 0, 0, 0);
+    outer->addWidget(rootFrame);
+    setLayout(outer);
     // 默认进入登录页，锁定为登录尺寸
     setFixedSize(QSize(320, 448));
-    setStyleSheet(QStringLiteral("QWidget { background-color: #0b1221; border: none; }"));
 
     sendShortcutEnter_ = new QShortcut(QKeySequence(Qt::Key_Return), this);
     connect(sendShortcutEnter_, &QShortcut::activated, this, [this]() {
@@ -1170,8 +1188,8 @@ void QtClientWindow::ApplyTheme()
             background: transparent;
             border: none;
             padding: 4px;
-            min-width: 52px;
-            max-width: 58px;
+            min-width: 48px;
+            max-width: 52px;
         }
         QPushButton#NavButton {
             background: transparent;
@@ -1200,7 +1218,7 @@ void QtClientWindow::ApplyTheme()
             background: transparent;
             border: none;
             padding: 4px;
-            min-width: 220px;
+            min-width: 200px;
         }
         QFrame#ChatPanel, QFrame#SettingsPanel {
             background: transparent;
@@ -1223,6 +1241,11 @@ void QtClientWindow::ApplyTheme()
         QListWidget::item { padding: 6px; }
         QListWidget::item:selected { background: %5; color: #ffffff; }
         QFrame#ListPanel { background: transparent; border: none; }
+        QFrame#RootCard {
+            background: %1;
+            border-radius: 12px;
+            border: 1px solid %4;
+        }
         QLineEdit, QPlainTextEdit, QComboBox, QSpinBox {
             background: %3;
             color: %2;
