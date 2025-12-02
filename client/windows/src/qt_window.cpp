@@ -49,10 +49,7 @@
 #include <QNetworkAccessManager>
 #include <QNetworkReply>
 #include <QNetworkRequest>
-#if QT_VERSION < QT_VERSION_CHECK(6, 0, 0)
-#include <QNetworkConfigurationManager>
-#include <QNetworkSession>
-#endif
+#include <QScopedPointer>
 #include <QUrl>
 #include <QSpinBox>
 #include <QSplitter>
@@ -60,9 +57,14 @@
 #include <QVariant>
 #include <QElapsedTimer>
 #include <QProcess>
+#if QT_VERSION < QT_VERSION_CHECK(6, 0, 0)
+#include <QNetworkConfigurationManager>
+#include <QNetworkSession>
+#endif
 #ifdef MI_ENABLE_QTMULTIMEDIA
 #include <QMediaPlayer>
 #if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
+#include <QVideoFrame>
 #include <QVideoSink>
 #else
 #include <QVideoWidget>
@@ -461,6 +463,25 @@ void QtClientWindow::BuildUi()
             ApplyTheme();
         }
     });
+    connect(paletteGroupBox_, static_cast<void (QComboBox::*)(int)>(&QComboBox::currentIndexChanged), this, [this](int idx) {
+        const QString key = paletteGroupBox_->itemText(idx);
+        currentPaletteGroup_ = key;
+        static const QMap<QString, QStringList> groups = {
+            {QStringLiteral("默认合集"), {QStringLiteral("#2563eb"), QStringLiteral("#22c55e"), QStringLiteral("#f59e0b")}},
+            {QStringLiteral("活力"), {QStringLiteral("#ef4444"), QStringLiteral("#f97316"), QStringLiteral("#a855f7")}},
+            {QStringLiteral("冷静"), {QStringLiteral("#0ea5e9"), QStringLiteral("#6366f1"), QStringLiteral("#14b8a6")}},
+            {QStringLiteral("自然"), {QStringLiteral("#16a34a"), QStringLiteral("#65a30d"), QStringLiteral("#0ea5e9")}},
+        };
+        activeGroupPalette_ = groups.value(key, groups.first());
+        if (!activeGroupPalette_.isEmpty())
+        {
+            accentColor_ = activeGroupPalette_.front();
+            accentInput_->setText(accentColor_);
+            ApplyTheme();
+        }
+        RefreshPaletteSwatches();
+        SaveSettings();
+    });
     headerRow->addWidget(themeSwitch_);
     headerRow->addWidget(accentSwitch_);
     headerRow->addWidget(paletteGroupBox_);
@@ -786,7 +807,7 @@ void QtClientWindow::FetchCertMemory()
     req.setRawHeader("Accept", "application/json");
     auto* reply = networkManager_->get(req);
     connect(reply, &QNetworkReply::finished, this, [this, reply]() {
-        std::unique_ptr<QNetworkReply, QObjectDeleter> guard(reply);
+        const QScopedPointer<QNetworkReply, QScopedPointerDeleteLater> guard(reply);
         if (reply->error() != QNetworkReply::NoError)
         {
             AppendLog(QStringLiteral("[ui] 拉取证书失败: ") + reply->errorString());
@@ -860,6 +881,7 @@ void QtClientWindow::AddChatBubble(const QString& content,
     {
         return;
     }
+    const QString senderKey = outbound ? QStringLiteral("me") : title;
     if (lastSenderKey_ != senderKey)
     {
         // 新发言者，插入时间分隔标签
@@ -895,7 +917,6 @@ void QtClientWindow::AddChatBubble(const QString& content,
     QLabel* avatar = new QLabel(outbound ? QStringLiteral("我") : QStringLiteral("友"), row);
     avatar->setAlignment(Qt::AlignCenter);
     avatar->setObjectName(QStringLiteral("Avatar"));
-    const QString senderKey = outbound ? QStringLiteral("me") : title;
 
     QFrame* bubble = new QFrame(row);
     bubble->setObjectName(outbound ? QStringLiteral("BubbleOutbound") : QStringLiteral("BubbleInbound"));
@@ -1289,7 +1310,8 @@ void QtClientWindow::MarkMediaRevoked(std::uint64_t messageId)
     if (previewIt != mediaPreviewById_.end() && !previewIt->second.isNull())
     {
         QLabel* preview = previewIt->second;
-        QPixmap pix = preview->pixmap() ? preview->pixmap()->copy() : BuildPlaceholderPreview(QStringLiteral("已撤回"));
+        const QPixmap current = preview->pixmap(Qt::ReturnByValue);
+        QPixmap pix = !current.isNull() ? current.copy() : BuildPlaceholderPreview(QStringLiteral("已撤回"));
         QPainter painter(&pix);
         painter.fillRect(pix.rect(), QColor(0, 0, 0, 120));
         painter.setPen(QPen(QColor("#fca5a5")));
@@ -1603,7 +1625,7 @@ void QtClientWindow::FetchRemoteSessions()
     req.setRawHeader("Accept", "application/json");
     auto* reply = networkManager_->get(req);
     connect(reply, &QNetworkReply::finished, this, [this, reply]() {
-        std::unique_ptr<QNetworkReply, QObjectDeleter> guard(reply);
+        const QScopedPointer<QNetworkReply, QScopedPointerDeleteLater> guard(reply);
         if (reply->error() != QNetworkReply::NoError)
         {
             AppendLog(QStringLiteral("[ui] 拉取会话失败，回退本地: ") + reply->errorString());
@@ -1930,7 +1952,7 @@ void QtClientWindow::FetchStatsHistory()
     req.setRawHeader("Accept", "application/json");
     auto* reply = networkManager_->get(req);
     connect(reply, &QNetworkReply::finished, this, [this, reply]() {
-        std::unique_ptr<QNetworkReply, QObjectDeleter> guard(reply);
+        const QScopedPointer<QNetworkReply, QScopedPointerDeleteLater> guard(reply);
         if (reply->error() != QNetworkReply::NoError)
         {
             AppendLog(QStringLiteral("[ui] 拉取统计失败: ") + reply->errorString());
@@ -1993,14 +2015,14 @@ void QtClientWindow::ToggleSidebar()
 
     if (sidebarCollapsed_)
     {
-        anim->setStartValue(sizes);
-        anim->setEndValue(QList<int>({0, sizes[0] + sizes[1]}));
+        anim->setStartValue(QVariant::fromValue(sizes));
+        anim->setEndValue(QVariant::fromValue(QList<int>({0, sizes[0] + sizes[1]})));
         toggleSidebarButton_->setText(QStringLiteral("展开侧栏"));
     }
     else
     {
-        anim->setStartValue(QList<int>({0, sizes[0] + sizes[1]}));
-        anim->setEndValue(QList<int>({220, std::max(320, sizes[1])}));
+        anim->setStartValue(QVariant::fromValue(QList<int>({0, sizes[0] + sizes[1]})));
+        anim->setEndValue(QVariant::fromValue(QList<int>({220, std::max(320, sizes[1])})));
         toggleSidebarButton_->setText(QStringLiteral("折叠侧栏"));
     }
     anim->start(QAbstractAnimation::DeleteWhenStopped);
@@ -2873,22 +2895,3 @@ void QtClientWindow::SetUiEnabled(bool enabled)
     revokeCheck_->setEnabled(enabled);
     mediaEdit_->setEnabled(enabled);
 }
-    connect(paletteGroupBox_, static_cast<void (QComboBox::*)(int)>(&QComboBox::currentIndexChanged), this, [this](int idx) {
-        const QString key = paletteGroupBox_->itemText(idx);
-        currentPaletteGroup_ = key;
-        static const QMap<QString, QStringList> groups = {
-            {QStringLiteral("默认合集"), {QStringLiteral("#2563eb"), QStringLiteral("#22c55e"), QStringLiteral("#f59e0b")}},
-            {QStringLiteral("活力"), {QStringLiteral("#ef4444"), QStringLiteral("#f97316"), QStringLiteral("#a855f7")}},
-            {QStringLiteral("冷静"), {QStringLiteral("#0ea5e9"), QStringLiteral("#6366f1"), QStringLiteral("#14b8a6")}},
-            {QStringLiteral("自然"), {QStringLiteral("#16a34a"), QStringLiteral("#65a30d"), QStringLiteral("#0ea5e9")}},
-        };
-        activeGroupPalette_ = groups.value(key, groups.first());
-        if (!activeGroupPalette_.isEmpty())
-        {
-            accentColor_ = activeGroupPalette_.front();
-            accentInput_->setText(accentColor_);
-            ApplyTheme();
-        }
-        RefreshPaletteSwatches();
-        SaveSettings();
-    });
