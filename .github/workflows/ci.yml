@@ -105,6 +105,8 @@ jobs:
             mingw-w64-x86_64-ninja
             mingw-w64-x86_64-python
             mingw-w64-x86_64-python-pip
+            mingw-w64-x86_64-libxml2
+            mingw-w64-x86_64-libxslt
       - name: Install gcovr
         env:
           PIP_BREAK_SYSTEM_PACKAGES: "1"

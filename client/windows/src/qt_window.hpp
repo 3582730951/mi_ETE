@@ -44,7 +44,7 @@ public:
     explicit QtClientWindow(QWidget* parent = nullptr);
     ~QtClientWindow() override;
 
-private slots:
+private Q_SLOTS:
     void OnStartClicked();
     void OnBrowseMedia();
     void OnStopClicked();
