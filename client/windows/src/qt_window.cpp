@@ -297,6 +297,7 @@ QtClientWindow::~QtClientWindow()
 void QtClientWindow::BuildUi()
 {
     setWindowTitle(QStringLiteral("mi_client Qt UI"));
+    const QString defaultServer = DefaultServerAddress();
 
     sidebar_ = new QFrame(this);
     sidebar_->setObjectName(QStringLiteral("Sidebar"));
@@ -387,7 +388,6 @@ void QtClientWindow::BuildUi()
         }
     });
 
-    const QString defaultServer = DefaultServerAddress();
     serverEdit_ = new QLineEdit(defaultServer, this);
     serverEdit_->setPlaceholderText(QStringLiteral("服务器 (构建时指定)"));
     serverEdit_->setReadOnly(true);
