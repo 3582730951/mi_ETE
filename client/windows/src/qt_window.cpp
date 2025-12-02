@@ -1249,8 +1249,8 @@ void QtClientWindow::ApplyTheme()
             background: transparent;
             border: none;
             padding: 4px;
-            min-width: 36px;
-            max-width: 40px;
+            min-width: 32px;
+            max-width: 36px;
         }
         QPushButton#NavButton {
             background: transparent;
@@ -3888,8 +3888,8 @@ void QtClientWindow::ApplySessionWidget(const QString& peer, QListWidgetItem* it
     item->setData(Qt::UserRole + 1, peer);
     QWidget* w = new QWidget(feedList_);
     auto* row = new QHBoxLayout(w);
-    row->setContentsMargins(8, 4, 8, 4);
-    row->setSpacing(6);
+    row->setContentsMargins(8, 6, 8, 6);
+    row->setSpacing(10);
 
     auto* avatar = new QLabel(w);
     avatar->setObjectName(QStringLiteral("Avatar"));
@@ -3912,6 +3912,7 @@ void QtClientWindow::ApplySessionWidget(const QString& peer, QListWidgetItem* it
     }
     auto* name = new QLabel(nameText, w);
     name->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
+    name->setWordWrap(false);
     name->setObjectName(QStringLiteral("SessionName"));
     QString metaText = online ? QStringLiteral("在线") : QStringLiteral("离线");
     if ([&]() {
