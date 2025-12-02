@@ -689,7 +689,11 @@ void QtClientWindow::BuildUi()
     mainPanel_ = new QFrame(this);
     mainPanel_->setObjectName(QStringLiteral("ChatPanel"));
     auto formLayout = new QVBoxLayout(mainPanel_);
+    formLayout->setContentsMargins(0, 0, 0, 0);
+    formLayout->setSpacing(6);
     auto headerRow = new QHBoxLayout();
+    headerRow->setContentsMargins(0, 0, 0, 0);
+    headerRow->setSpacing(8);
     sessionLabel_ = new QLabel(QStringLiteral("会话"));
     sessionLabel_->setObjectName(QStringLiteral("ChatTitle"));
     headerRow->addWidget(sessionLabel_);
@@ -712,8 +716,6 @@ void QtClientWindow::BuildUi()
     headerActionsLayout_->addWidget(fileActionButton_);
     headerActionsLayout_->addWidget(moreActionButton_);
     headerRow->addLayout(headerActionsLayout_);
-    headerRow->addSpacing(6);
-    headerRow->addSpacing(6);
     formLayout->addLayout(headerRow);
 
     alertBanner_ = new QFrame(this);
@@ -773,7 +775,8 @@ void QtClientWindow::BuildUi()
     composerPanel_ = new QFrame(this);
     composerPanel_->setObjectName(QStringLiteral("Composer"));
     auto* composerLayout = new QVBoxLayout(composerPanel_);
-    composerLayout->setSpacing(10);
+    composerLayout->setContentsMargins(0, 0, 0, 0);
+    composerLayout->setSpacing(6);
     composerLayout->addWidget(messageEdit_);
 
     auto toolbarRow = new QHBoxLayout();
