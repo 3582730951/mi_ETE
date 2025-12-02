@@ -39,6 +39,21 @@ if (Test-Path $qtDll) {
     Copy-Item (Join-Path $QtDllDir "mi_client_qt_ui.dll") -Destination (Join-Path $root $OutputDir) -Force -ErrorAction SilentlyContinue
 }
 
+# 部署 Qt 运行时，确保 UI 可直接运行
+$qtUiPath = Join-Path $root $OutputDir "mi_client_qt_ui.dll"
+if (Test-Path $qtUiPath) {
+    $windeploy = Get-Command "windeployqt.exe" -ErrorAction SilentlyContinue
+    if (-not $windeploy -and $env:QT_ROOT_DIR) {
+        $candidate = Join-Path $env:QT_ROOT_DIR "bin/windeployqt.exe"
+        if (Test-Path $candidate) { $windeploy = $candidate }
+    }
+    if ($windeploy) {
+        & $windeploy --dir (Join-Path $root $OutputDir) --no-translations --release $qtUiPath
+    } else {
+        Write-Host "[package] 未找到 windeployqt.exe，Qt 运行时未自动拷贝，可能导致 UI 运行失败" -ForegroundColor Yellow
+    }
+}
+
 # 可选复制 Qt 依赖目录
 if ($QtDllDir -ne "") {
     $qtBin = Join-Path $QtDllDir "bin"
