@@ -8,6 +8,7 @@
 #include <deque>
 
 #include <QEvent>
+#include <QObject>
 #include <QDateTime>
 #include <QMap>
 #include <QPixmap>

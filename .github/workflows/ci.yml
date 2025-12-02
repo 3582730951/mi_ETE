@@ -106,10 +106,11 @@ jobs:
             mingw-w64-x86_64-python
             mingw-w64-x86_64-python-pip
       - name: Install gcovr
+        env:
+          PIP_BREAK_SYSTEM_PACKAGES: "1"
         run: |
-          python -m ensurepip --upgrade
-          python -m pip install --upgrade pip
-          python -m pip install gcovr
+          python -m pip install --upgrade --break-system-packages pip
+          python -m pip install --break-system-packages gcovr
       - name: Configure (coverage)
         run: |
           cmake -S . -B build-coverage -G "Ninja" \
