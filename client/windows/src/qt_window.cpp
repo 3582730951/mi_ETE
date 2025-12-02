@@ -663,6 +663,28 @@ void QtClientWindow::BuildUi()
     mainPanel_->setObjectName(QStringLiteral("ChatPanel"));
     auto formLayout = new QVBoxLayout(mainPanel_);
     auto headerRow = new QHBoxLayout();
+    sessionLabel_ = new QLabel(QStringLiteral("会话"));
+    sessionLabel_->setObjectName(QStringLiteral("ChatTitle"));
+    headerRow->addWidget(sessionLabel_);
+    headerRow->addStretch();
+    auto* headerActions = new QHBoxLayout();
+    headerActions->setSpacing(6);
+    callButton_ = new QPushButton(QStringLiteral("📞"), this);
+    callButton_->setObjectName(QStringLiteral("HeaderAction"));
+    videoButton_ = new QPushButton(QStringLiteral("🎥"), this);
+    videoButton_->setObjectName(QStringLiteral("HeaderAction"));
+    screenShareButton_ = new QPushButton(QStringLiteral("🖥"), this);
+    screenShareButton_->setObjectName(QStringLiteral("HeaderAction"));
+    fileActionButton_ = new QPushButton(QStringLiteral("📎"), this);
+    fileActionButton_->setObjectName(QStringLiteral("HeaderAction"));
+    moreActionButton_ = new QPushButton(QStringLiteral("⋯"), this);
+    moreActionButton_->setObjectName(QStringLiteral("HeaderAction"));
+    headerActions->addWidget(callButton_);
+    headerActions->addWidget(videoButton_);
+    headerActions->addWidget(screenShareButton_);
+    headerActions->addWidget(fileActionButton_);
+    headerActions->addWidget(moreActionButton_);
+    headerRow->addLayout(headerActions);
     backButton_ = new QPushButton(QStringLiteral("◀ 列表"), this);
     backButton_->setObjectName(QStringLiteral("GhostButton"));
     backButton_->setFixedWidth(70);
@@ -673,27 +695,13 @@ void QtClientWindow::BuildUi()
     headerRow->addSpacing(4);
     headerRow->addWidget(headline);
     headerRow->addStretch();
-    accountLabel_ = new QLabel(QStringLiteral("账户: 未登录 @ %1").arg(defaultServer));
-    accountLabel_->setObjectName(QStringLiteral("StatusPill"));
-    headerRow->addWidget(accountLabel_);
     headerRow->addSpacing(6);
-    switchAccountButton_ = new QPushButton(QStringLiteral("切换账号"), this);
-    switchAccountButton_->setObjectName(QStringLiteral("GhostButton"));
-    switchAccountButton_->setFixedWidth(78);
-    connect(switchAccountButton_, &QPushButton::clicked, this, &QtClientWindow::ShowLoginPage);
-    headerRow->addWidget(switchAccountButton_);
     headerRow->addSpacing(6);
     sessionLabel_ = new QLabel(QStringLiteral("目标: 自己"));
     sessionLabel_->setObjectName(QStringLiteral("StatusPill"));
     headerRow->addWidget(sessionLabel_);
     headerRow->addSpacing(6);
-    channelStatusLabel_ = new QLabel(QStringLiteral("频道: 单聊"));
-    channelStatusLabel_->setObjectName(QStringLiteral("StatusPill"));
-    headerRow->addWidget(channelStatusLabel_);
     headerRow->addSpacing(6);
-    networkStatusLabel_ = new QLabel(QStringLiteral("网络: 未知"));
-    networkStatusLabel_->setObjectName(QStringLiteral("StatusPill"));
-    headerRow->addWidget(networkStatusLabel_);
     headerRow->addSpacing(6);
     headerRow->addSpacing(6);
     auto* headerActions = new QHBoxLayout();
@@ -715,17 +723,7 @@ void QtClientWindow::BuildUi()
     headerActions->addWidget(moreActionButton_);
     headerRow->addLayout(headerActions);
     headerRow->addSpacing(6);
-    toggleSettingsButton_ = new QPushButton(QStringLiteral("展开设置"), this);
-    toggleSettingsButton_->setObjectName(QStringLiteral("SettingsToggle"));
-    toggleSettingsButton_->setFixedWidth(90);
-    connect(toggleSettingsButton_, &QPushButton::clicked, this, &QtClientWindow::ToggleSettings);
-    headerRow->addWidget(toggleSettingsButton_);
     headerRow->addSpacing(6);
-    toggleSidebarButton_ = new QPushButton(QStringLiteral("隐藏会话"), this);
-    toggleSidebarButton_->setObjectName(QStringLiteral("SidebarToggle"));
-    toggleSidebarButton_->setFixedWidth(90);
-    connect(toggleSidebarButton_, &QPushButton::clicked, this, &QtClientWindow::ToggleSidebar);
-    headerRow->addWidget(toggleSidebarButton_);
     formLayout->addLayout(headerRow);
 
     alertBanner_ = new QFrame(this);
@@ -755,7 +753,6 @@ void QtClientWindow::BuildUi()
     emptyStateLabel_->setObjectName(QStringLiteral("StatusPill"));
     formLayout->addWidget(emptyStateLabel_);
 
-    formLayout->addWidget(new QLabel(QStringLiteral("会话流")));
     messageView_ = new QListWidget(this);
     messageView_->setFrameShape(QFrame::NoFrame);
     messageView_->setSpacing(8);
@@ -1220,6 +1217,7 @@ void QtClientWindow::ApplyTheme()
         }
         QLabel#SidebarTitle { font-size: 18px; font-weight: 700; color: #38bdf8; }
         QLabel#Headline { font-size: 20px; font-weight: 700; color: #cbd5e1; }
+        QLabel#ChatTitle { font-size: 18px; font-weight: 700; color: #e2e8f0; }
         QLabel#StatusPill {
             background: %3;
             border-radius: 10px;
