@@ -332,7 +332,7 @@ void QtClientWindow::BuildUi()
 
     navRail_ = new QFrame(this);
     navRail_->setObjectName(QStringLiteral("NavRail"));
-    navRail_->setFixedWidth(52);
+    navRail_->setFixedWidth(48);
     auto* navLayout = new QVBoxLayout(navRail_);
     navLayout->setContentsMargins(8, 12, 8, 12);
     navLayout->setSpacing(8);
@@ -360,14 +360,14 @@ void QtClientWindow::BuildUi()
     sidebar_ = new QFrame(this);
     sidebar_->setObjectName(QStringLiteral("Sidebar"));
     auto* sidebarRow = new QHBoxLayout(sidebar_);
-    sidebarRow->setContentsMargins(4, 4, 4, 4);
+    sidebarRow->setContentsMargins(2, 2, 2, 2);
     sidebarRow->setSpacing(10);
     sidebarRow->addWidget(navRail_);
 
     auto* listPanel = new QFrame(sidebar_);
     listPanel->setObjectName(QStringLiteral("ListPanel"));
     auto* sideLayout = new QVBoxLayout(listPanel);
-    sideLayout->setContentsMargins(6, 6, 6, 6);
+    sideLayout->setContentsMargins(4, 4, 4, 4);
     sideLayout->setSpacing(6);
     auto* titleRow = new QHBoxLayout();
     titleRow->setContentsMargins(0, 0, 0, 0);
@@ -411,7 +411,7 @@ void QtClientWindow::BuildUi()
     sessionSearch_ = new QLineEdit(listPanel);
     sessionSearch_->setPlaceholderText(QStringLiteral("搜索"));
     sessionSearch_->setClearButtonEnabled(true);
-    sessionSearch_->setFixedHeight(32);
+    sessionSearch_->setFixedHeight(30);
     sessionSearch_->setObjectName(QStringLiteral("SearchBar"));
     QPushButton* addButton = new QPushButton(QStringLiteral("+"), listPanel);
     addButton->setObjectName(QStringLiteral("GhostButton"));
@@ -420,11 +420,11 @@ void QtClientWindow::BuildUi()
     connect(addButton, &QPushButton::clicked, this, [this]() { FetchRemoteSessions(); });
     QPushButton* minButton = new QPushButton(QStringLiteral("—"), listPanel);
     minButton->setObjectName(QStringLiteral("GhostButton"));
-    minButton->setFixedSize(28, 28);
+    minButton->setFixedSize(24, 24);
     connect(minButton, &QPushButton::clicked, this, [this]() { showMinimized(); });
     QPushButton* closeButton = new QPushButton(QStringLiteral("×"), listPanel);
     closeButton->setObjectName(QStringLiteral("GhostButton"));
-    closeButton->setFixedSize(28, 28);
+    closeButton->setFixedSize(24, 24);
     connect(closeButton, &QPushButton::clicked, this, [this]() { close(); });
     topBar->addWidget(sessionSearch_, 1);
     topBar->addWidget(addButton);
@@ -1218,7 +1218,7 @@ void QtClientWindow::ApplyTheme()
             background: transparent;
             border: none;
             padding: 4px;
-            min-width: 200px;
+            min-width: 150px;
         }
         QFrame#ChatPanel, QFrame#SettingsPanel {
             background: transparent;
@@ -2817,7 +2817,7 @@ void QtClientWindow::ShowChatPage(const QString& peer, bool isGroup)
     }
     if (sessionLabel_)
     {
-        sessionLabel_->setText(QStringLiteral("目标: %1").arg(peer));
+        sessionLabel_->setText(isGroup ? QStringLiteral("群聊 %1").arg(peer) : QStringLiteral("用户 %1").arg(peer));
     }
     if (channelStatusLabel_)
     {
@@ -3824,7 +3824,7 @@ void QtClientWindow::ApplySessionWidget(const QString& peer, QListWidgetItem* it
     row->addStretch();
     row->addWidget(badge);
 
-    item->setSizeHint(QSize(item->sizeHint().width(), 68));
+    item->setSizeHint(QSize(item->sizeHint().width(), 64));
     feedList_->setItemWidget(item, w);
     sessionBadgeLabels_[peer] = badge;
     sessionNameLabels_[peer] = name;
@@ -3923,7 +3923,6 @@ void QtClientWindow::mousePressEvent(QMouseEvent* event)
         draggingWindow_ = true;
         dragOffset_ = event->globalPos() - frameGeometry().topLeft();
         event->accept();
-        return;
     }
     QWidget::mousePressEvent(event);
 }
