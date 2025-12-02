@@ -28,7 +28,9 @@ jobs:
             cmake -S . -B build -G "Ninja" -DBUILD_SERVER=ON -DBUILD_CLIENT_WINDOWS=ON -DBUILD_SHARED_TESTS=ON -DCMAKE_BUILD_TYPE=Release
           }
       - name: Build
-        run: cmake --build build --config Release
+        env:
+          NINJA_STATUS: "[%e sec | %f/%t | %r running] "
+        run: cmake --build build --config Release -- -v
       - name: Test
         run: ctest --test-dir build --output-on-failure -C Release
       - name: Generate self-signed certs
