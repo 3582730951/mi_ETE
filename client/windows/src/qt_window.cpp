@@ -403,12 +403,21 @@ void QtClientWindow::BuildUi()
     accountLayout->addWidget(sidebarSwitch);
     sideLayout->addWidget(accountCard);
 
-    auto connectionsLabel = new QLabel(QStringLiteral("会话列表"));
+    auto* topBar = new QHBoxLayout();
+    topBar->setContentsMargins(0, 0, 0, 0);
+    topBar->setSpacing(8);
     sessionSearch_ = new QLineEdit(listPanel);
-    sessionSearch_->setPlaceholderText(QStringLiteral("搜索会话 / Session"));
+    sessionSearch_->setPlaceholderText(QStringLiteral("搜索"));
     sessionSearch_->setClearButtonEnabled(true);
     sessionSearch_->setFixedHeight(32);
     sessionSearch_->setObjectName(QStringLiteral("SearchBar"));
+    QPushButton* addButton = new QPushButton(QStringLiteral("+"), listPanel);
+    addButton->setObjectName(QStringLiteral("GhostButton"));
+    addButton->setFixedSize(32, 32);
+    addButton->setToolTip(QStringLiteral("添加会话/群"));
+    connect(addButton, &QPushButton::clicked, this, [this]() { FetchRemoteSessions(); });
+    topBar->addWidget(sessionSearch_, 1);
+    topBar->addWidget(addButton);
     feedList_ = new QListWidget(listPanel);
     feedList_->setContextMenuPolicy(Qt::CustomContextMenu);
     connect(feedList_, &QListWidget::customContextMenuRequested, this, [this](const QPoint& pos) {
@@ -467,7 +476,7 @@ void QtClientWindow::BuildUi()
     listActions->addStretch();
     sideLayout->addLayout(listActions);
 
-    sideLayout->addWidget(sessionSearch_);
+    sideLayout->addLayout(topBar);
     auto* snapshotRow = new QHBoxLayout();
     snapshotRow->setSpacing(8);
     QPushButton* exportSessions = new QPushButton(QStringLiteral("导出"), listPanel);
@@ -1184,9 +1193,9 @@ void QtClientWindow::ApplyTheme()
             background: transparent;
             color: %2;
             border: 1px solid %4;
-            border-radius: 10px;
-            padding: 6px 10px;
-            min-width: 36px;
+            border-radius: 8px;
+            padding: 4px 8px;
+            min-width: 32px;
         }
         QPushButton#HeaderAction:hover { border-color: %5; color: %5; }
         QFrame#Sidebar {
