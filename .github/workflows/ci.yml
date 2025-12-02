@@ -88,6 +88,7 @@ jobs:
 
   windows-coverage:
     runs-on: windows-latest
+    timeout-minutes: 40
     defaults:
       run:
         shell: msys2 {0}
@@ -123,7 +124,7 @@ jobs:
       - name: Build (coverage)
         run: cmake --build build-coverage --config Debug
       - name: Test (coverage)
-        run: ctest --test-dir build-coverage --output-on-failure -C Debug
+        run: ctest --test-dir build-coverage --output-on-failure -C Debug --timeout 120
       - name: Generate coverage report
         run: |
           gcovr -r core --filter core -j 2 --xml -o build-coverage/coverage.xml --html-details build-coverage/coverage.html
