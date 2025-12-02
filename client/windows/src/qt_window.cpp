@@ -161,6 +161,8 @@ QtClientWindow::QtClientWindow(QWidget* parent)
       headerActionsLayout_(nullptr),
       draggingWindow_(false),
       dragOffset_(),
+      draggingChatWindow_(false),
+      chatDragOffset_(),
       chatWindow_(nullptr),
       chatWindowLayout_(nullptr),
       navGroup_(nullptr),
@@ -412,6 +414,7 @@ void QtClientWindow::BuildUi()
     topBar->setSpacing(8);
     sessionSearch_ = new QLineEdit(listPanel);
     sessionSearch_->setPlaceholderText(QStringLiteral("搜索"));
+    sessionSearch_->setFixedHeight(32);
     sessionSearch_->setClearButtonEnabled(true);
     sessionSearch_->setFixedHeight(30);
     sessionSearch_->setObjectName(QStringLiteral("SearchBar"));
@@ -569,8 +572,16 @@ void QtClientWindow::BuildUi()
     italicButton_->setFixedWidth(32);
     codeButton_ = new QPushButton(QStringLiteral("`"), this);
     codeButton_->setFixedWidth(32);
+    // 调整工具栏按钮的统一风格
+    emojiButton_->setText(QStringLiteral("😊"));
+    emojiButton_->setObjectName(QStringLiteral("ToolbarIcon"));
+    boldButton_->setObjectName(QStringLiteral("ToolbarIcon"));
+    italicButton_->setObjectName(QStringLiteral("ToolbarIcon"));
+    codeButton_->setObjectName(QStringLiteral("ToolbarIcon"));
     mediaProgress_ = new QProgressBar(this);
     mediaProgress_->setRange(0, 100);
+    mediaProgress_->setTextVisible(false);
+    mediaProgress_->setFixedHeight(8);
     mediaProgress_->setValue(0);
     mediaProgress_->setTextVisible(true);
     mediaProgress_->setFormat(QStringLiteral("准备就绪"));
@@ -580,6 +591,7 @@ void QtClientWindow::BuildUi()
     speedSparkline_ = new QLabel(this);
     speedSparkline_->setFixedHeight(28);
     speedSparkline_->setFixedWidth(120);
+    speedSparkline_->setVisible(false);
     statsHistoryChart_ = new QLabel(this);
     statsHistoryChart_->setObjectName(QStringLiteral("StatsChart"));
     statsHistoryChart_->setFixedHeight(120);
@@ -702,15 +714,15 @@ void QtClientWindow::BuildUi()
     headerRow->addStretch();
     headerActionsLayout_ = new QHBoxLayout();
     headerActionsLayout_->setSpacing(6);
-    callButton_ = new QPushButton(QStringLiteral("📞"), this);
+    callButton_ = new QPushButton(QStringLiteral("语音"), this);
     callButton_->setObjectName(QStringLiteral("HeaderAction"));
-    videoButton_ = new QPushButton(QStringLiteral("🎥"), this);
+    videoButton_ = new QPushButton(QStringLiteral("视频"), this);
     videoButton_->setObjectName(QStringLiteral("HeaderAction"));
-    screenShareButton_ = new QPushButton(QStringLiteral("🖥"), this);
+    screenShareButton_ = new QPushButton(QStringLiteral("屏幕"), this);
     screenShareButton_->setObjectName(QStringLiteral("HeaderAction"));
-    fileActionButton_ = new QPushButton(QStringLiteral("📎"), this);
+    fileActionButton_ = new QPushButton(QStringLiteral("文件"), this);
     fileActionButton_->setObjectName(QStringLiteral("HeaderAction"));
-    moreActionButton_ = new QPushButton(QStringLiteral("⋯"), this);
+    moreActionButton_ = new QPushButton(QStringLiteral("…"), this);
     moreActionButton_->setObjectName(QStringLiteral("HeaderAction"));
     headerActionsLayout_->addWidget(callButton_);
     headerActionsLayout_->addWidget(videoButton_);
@@ -720,11 +732,29 @@ void QtClientWindow::BuildUi()
     QPushButton* chatMinButton = new QPushButton(QStringLiteral("—"), this);
     chatMinButton->setObjectName(QStringLiteral("GhostButton"));
     chatMinButton->setFixedSize(24, 24);
-    connect(chatMinButton, &QPushButton::clicked, this, [this]() { showMinimized(); });
+    connect(chatMinButton, &QPushButton::clicked, this, [this]() {
+        if (chatWindow_)
+        {
+            chatWindow_->showMinimized();
+        }
+        else
+        {
+            showMinimized();
+        }
+    });
     QPushButton* chatCloseButton = new QPushButton(QStringLiteral("×"), this);
     chatCloseButton->setObjectName(QStringLiteral("GhostButton"));
     chatCloseButton->setFixedSize(24, 24);
-    connect(chatCloseButton, &QPushButton::clicked, this, [this]() { close(); });
+    connect(chatCloseButton, &QPushButton::clicked, this, [this]() {
+        if (chatWindow_)
+        {
+            chatWindow_->close();
+        }
+        else
+        {
+            close();
+        }
+    });
     headerActionsLayout_->addWidget(chatMinButton);
     headerActionsLayout_->addWidget(chatCloseButton);
     headerRow->addLayout(headerActionsLayout_);
@@ -797,11 +827,11 @@ void QtClientWindow::BuildUi()
     toolbarRow->addWidget(boldButton_);
     toolbarRow->addWidget(italicButton_);
     toolbarRow->addWidget(codeButton_);
-    QPushButton* clipButton = new QPushButton(QStringLiteral("✂️"), this);
+    QPushButton* clipButton = new QPushButton(QStringLiteral("📎"), this);
     clipButton->setObjectName(QStringLiteral("HeaderAction"));
-    QPushButton* folderButton = new QPushButton(QStringLiteral("🖼"), this);
+    QPushButton* folderButton = new QPushButton(QStringLiteral("📂"), this);
     folderButton->setObjectName(QStringLiteral("HeaderAction"));
-    QPushButton* mailButton = new QPushButton(QStringLiteral("✉️"), this);
+    QPushButton* mailButton = new QPushButton(QStringLiteral("✉"), this);
     mailButton->setObjectName(QStringLiteral("HeaderAction"));
     QPushButton* micButton = new QPushButton(QStringLiteral("🎤"), this);
     micButton->setObjectName(QStringLiteral("HeaderAction"));
@@ -811,6 +841,22 @@ void QtClientWindow::BuildUi()
     toolbarRow->addWidget(micButton);
     toolbarRow->addStretch();
     toolbarRow->addWidget(browseButton_);
+    connect(folderButton, &QPushButton::clicked, this, [this]() {
+        const QString path = QFileDialog::getOpenFileName(this, QStringLiteral("选择文件"), QString(), QStringLiteral("所有文件 (*.*)"));
+        if (!path.isEmpty() && mediaEdit_)
+        {
+            mediaEdit_->setText(path);
+            messageEdit_->setFocus();
+        }
+    });
+    connect(clipButton, &QPushButton::clicked, this, [this]() {
+        const QString path = QFileDialog::getOpenFileName(this, QStringLiteral("选择文件"), QString(), QStringLiteral("所有文件 (*.*)"));
+        if (!path.isEmpty() && mediaEdit_)
+        {
+            mediaEdit_->setText(path);
+            messageEdit_->setFocus();
+        }
+    });
     composerLayout->addLayout(toolbarRow);
 
     auto* mediaRow = new QHBoxLayout();
@@ -819,10 +865,16 @@ void QtClientWindow::BuildUi()
     composerLayout->addLayout(mediaRow);
 
     auto mediaProgressRow = new QHBoxLayout();
-    mediaProgressRow->addWidget(mediaProgress_, 3);
+    mediaProgressRow->addWidget(mediaProgress_, 4);
     mediaProgressRow->addWidget(mediaStatusLabel_, 2);
-    mediaProgressRow->addWidget(speedStatusLabel_, 1);
-    mediaProgressRow->addWidget(speedPeakLabel_, 1);
+    if (speedStatusLabel_)
+    {
+        speedStatusLabel_->setVisible(false);
+    }
+    if (speedPeakLabel_)
+    {
+        speedPeakLabel_->setVisible(false);
+    }
     mediaProgressRow->addStretch();
     sendMenuButton_ = new QPushButton(QStringLiteral("▼"), this);
     sendMenuButton_->setFixedWidth(34);
@@ -990,7 +1042,7 @@ void QtClientWindow::BuildUi()
     hSplit_->addWidget(sidebar_);
     hSplit_->setStretchFactor(0, 1);
     hSplit_->setCollapsible(0, true);
-    hSplit_->setSizes(QList<int>({180}));
+    hSplit_->setSizes(QList<int>({160}));
     settingsCollapsed_ = true;
     if (toggleSettingsButton_ != nullptr)
     {
@@ -1011,11 +1063,11 @@ void QtClientWindow::BuildUi()
     auto root = new QHBoxLayout(this);
     root->addWidget(mainStack_);
     setWindowFlags(Qt::FramelessWindowHint | Qt::Window);
-    setAttribute(Qt::WA_TranslucentBackground, false);
+    setAttribute(Qt::WA_TranslucentBackground, true);
     auto* rootFrame = new QFrame(this);
     rootFrame->setObjectName(QStringLiteral("RootCard"));
     auto* rootLayout = new QVBoxLayout(rootFrame);
-    rootLayout->setContentsMargins(4, 4, 4, 4);
+    rootLayout->setContentsMargins(0, 0, 0, 0);
     rootLayout->addLayout(root);
     auto* outer = new QVBoxLayout(this);
     outer->setContentsMargins(0, 0, 0, 0);
@@ -1178,7 +1230,7 @@ void QtClientWindow::ApplyTheme()
     const QString accent = accentColor_.isEmpty() ? QStringLiteral("#2563eb") : accentColor_;
     const QString sidebarGradTop = darkTheme_ ? QStringLiteral("#101827") : QStringLiteral("#f1f5f9");
     const QString sidebarGradBot = darkTheme_ ? QStringLiteral("#0a1120") : QStringLiteral("#e2e8f0");
-    setStyleSheet(QStringLiteral(R"(
+    const QString style = QStringLiteral(R"(
     QWidget { background-color: %1; color: %2; font-family: "Segoe UI"; }
         QFrame#NavRail {
             background: transparent;
@@ -1210,6 +1262,15 @@ void QtClientWindow::ApplyTheme()
             min-width: 32px;
         }
         QPushButton#HeaderAction:hover { border-color: %5; color: %5; }
+        QPushButton#ToolbarIcon {
+            background: transparent;
+            color: %2;
+            border: 1px solid %4;
+            border-radius: 8px;
+            padding: 4px 6px;
+            min-width: 28px;
+        }
+        QPushButton#ToolbarIcon:hover { border-color: %5; color: %5; }
         QFrame#Sidebar {
             background: transparent;
             border: none;
@@ -1234,7 +1295,7 @@ void QtClientWindow::ApplyTheme()
         QPushButton#SidebarToggle, QPushButton#SettingsToggle { background: transparent; color: #cbd5e1; border: 1px solid %4; padding: 8px 10px; }
         QPushButton#SidebarToggle:hover, QPushButton#SettingsToggle:hover { background: %4; }
         QListWidget { background: %3; border: 1px solid %4; border-radius: 8px; color: %2; }
-        QListWidget::item { padding: 6px; }
+        QListWidget::item { padding: 8px; min-height: 48px; font-size: 13px; }
         QListWidget::item:selected { background: %5; color: #ffffff; }
         QFrame#ListPanel { background: transparent; border: none; }
         QFrame#RootCard {
@@ -1335,7 +1396,12 @@ void QtClientWindow::ApplyTheme()
             background-color: %5;
             border-radius: 10px;
         }
-    )").arg(bg, fg, panel, border, accent, sidebarGradTop, sidebarGradBot));
+    )").arg(bg, fg, panel, border, accent, sidebarGradTop, sidebarGradBot);
+    setStyleSheet(style);
+    if (chatWindow_)
+    {
+        chatWindow_->setStyleSheet(style);
+    }
     RenderStatsHistory();
     SaveSettings();
 }
@@ -1907,6 +1973,30 @@ void QtClientWindow::ToggleMuteSession(const QString& peer, bool muted)
 
 bool QtClientWindow::eventFilter(QObject* watched, QEvent* event)
 {
+    if (chatWindow_ && (watched == chatWindow_ || watched == mainPanel_))
+    {
+        if (event->type() == QEvent::MouseButtonPress)
+        {
+            auto* me = static_cast<QMouseEvent*>(event);
+            if (me->button() == Qt::LeftButton && me->pos().y() <= 40)
+            {
+                draggingChatWindow_ = true;
+                chatDragOffset_ = me->globalPos() - chatWindow_->frameGeometry().topLeft();
+                return true;
+            }
+        }
+        else if (event->type() == QEvent::MouseMove && draggingChatWindow_)
+        {
+            auto* me = static_cast<QMouseEvent*>(event);
+            chatWindow_->move(me->globalPos() - chatDragOffset_);
+            return true;
+        }
+        else if (event->type() == QEvent::MouseButtonRelease && draggingChatWindow_)
+        {
+            draggingChatWindow_ = false;
+            return true;
+        }
+    }
     if (event->type() == QEvent::MouseButtonRelease)
     {
         auto it = mediaPreviewCache_.find(qobject_cast<QLabel*>(watched));
@@ -2786,7 +2876,7 @@ void QtClientWindow::ShowListPage()
     }
     if (hSplit_)
     {
-        hSplit_->setSizes(QList<int>({220}));
+        hSplit_->setSizes(QList<int>({160}));
     }
 }
 
@@ -2799,18 +2889,22 @@ void QtClientWindow::ShowChatPage(const QString& peer, bool isGroup)
     {
         chatWindow_ = new QWidget();
         chatWindow_->setWindowFlags(Qt::FramelessWindowHint | Qt::Window);
-        chatWindow_->setAttribute(Qt::WA_TranslucentBackground, false);
+        chatWindow_->setAttribute(Qt::WA_TranslucentBackground, true);
+        chatWindow_->setObjectName(QStringLiteral("ChatWindow"));
+        chatWindow_->installEventFilter(this);
         chatWindowLayout_ = new QVBoxLayout(chatWindow_);
         chatWindowLayout_->setContentsMargins(0, 0, 0, 0);
-        chatWindowLayout_->addWidget(mainPanel_);
+        auto* chatCard = new QFrame(chatWindow_);
+        chatCard->setObjectName(QStringLiteral("RootCard"));
+        auto* chatCardLayout = new QVBoxLayout(chatCard);
+        chatCardLayout->setContentsMargins(4, 4, 4, 4);
+        chatCardLayout->addWidget(mainPanel_);
+        chatWindowLayout_->addWidget(chatCard);
+        ApplyTheme();
     }
-    if (mainPanel_->parent() != chatWindow_)
+    if (mainPanel_ && !mainPanel_->isWindow())
     {
-        mainPanel_->setParent(chatWindow_);
-        if (chatWindowLayout_)
-        {
-            chatWindowLayout_->addWidget(mainPanel_);
-        }
+        mainPanel_->installEventFilter(this);
     }
     chatWindow_->setFixedSize(QSize(720, 800));
     chatWindow_->show();

@@ -38,6 +38,7 @@ class QProgressBar;
 class QCloseEvent;
 class QHBoxLayout;
 class QVBoxLayout;
+class QButtonGroup;
 class QNetworkAccessManager;
 class QTabWidget;
 class QButtonGroup;
@@ -160,6 +161,8 @@ private:
     QHBoxLayout* headerActionsLayout_;
     bool draggingWindow_{false};
     QPoint dragOffset_;
+    bool draggingChatWindow_{false};
+    QPoint chatDragOffset_;
     QWidget* chatWindow_{nullptr};
     QVBoxLayout* chatWindowLayout_{nullptr};
     QButtonGroup* navGroup_;
