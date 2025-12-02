@@ -37,6 +37,7 @@ class QLabel;
 class QProgressBar;
 class QCloseEvent;
 class QHBoxLayout;
+class QVBoxLayout;
 class QNetworkAccessManager;
 class QTabWidget;
 class QButtonGroup;
