@@ -53,6 +53,7 @@
 #include <QScopedPointer>
 #include <QButtonGroup>
 #include <QStackedWidget>
+#include <QMenu>
 #include <QUrl>
 #include <QSpinBox>
 #include <QSplitter>
@@ -199,6 +200,9 @@ QtClientWindow::QtClientWindow(QWidget* parent)
       alertBanner_(nullptr),
       alertLabel_(nullptr),
       alertRetryButton_(nullptr),
+      sendMenu_(nullptr),
+      sendShortcutEnter_(nullptr),
+      sendShortcutCtrlEnter_(nullptr),
       statusLabels_(),
       statusBadges_(),
       sessionItems_(),
@@ -239,6 +243,7 @@ QtClientWindow::QtClientWindow(QWidget* parent)
       lastSettingsWidth_(280),
       loggedIn_(false),
       activeNavIndex_(0),
+      sendOnEnter_(false),
       activeGroupPalette_(),
       currentPaletteGroup_(QStringLiteral("默认合集")),
       speedHistoryPersisted_(),
@@ -328,10 +333,10 @@ void QtClientWindow::BuildUi()
         navGroup_->addButton(btn);
         return btn;
     };
-    QPushButton* chatNav = makeNavButton(QStringLiteral("聊"), true);
-    QPushButton* contactNav = makeNavButton(QStringLiteral("友"), false);
-    QPushButton* filesNav = makeNavButton(QStringLiteral("文"), false);
-    QPushButton* settingsNav = makeNavButton(QStringLiteral("设"), false);
+    QPushButton* chatNav = makeNavButton(QStringLiteral("💬"), true);
+    QPushButton* contactNav = makeNavButton(QStringLiteral("👥"), false);
+    QPushButton* filesNav = makeNavButton(QStringLiteral("📂"), false);
+    QPushButton* settingsNav = makeNavButton(QStringLiteral("⚙"), false);
     navLayout->addWidget(chatNav);
     navLayout->addWidget(contactNav);
     navLayout->addWidget(filesNav);
@@ -892,10 +897,52 @@ void QtClientWindow::BuildUi()
     setLayout(root);
     resize(1180, 720);
 
-    auto* sendShortcut = new QShortcut(QKeySequence(Qt::CTRL | Qt::Key_Return), this);
-    connect(sendShortcut, &QShortcut::activated, this, &QtClientWindow::OnStartClicked);
+    sendShortcutEnter_ = new QShortcut(QKeySequence(Qt::Key_Return), this);
+    connect(sendShortcutEnter_, &QShortcut::activated, this, [this]() {
+        if (sendOnEnter_)
+        {
+            OnStartClicked();
+        }
+    });
+    sendShortcutCtrlEnter_ = new QShortcut(QKeySequence(Qt::CTRL | Qt::Key_Return), this);
+    connect(sendShortcutCtrlEnter_, &QShortcut::activated, this, [this]() {
+        if (!sendOnEnter_)
+        {
+            OnStartClicked();
+        }
+    });
     auto* sendShortcut2 = new QShortcut(QKeySequence(Qt::CTRL | Qt::Key_Enter), this);
-    connect(sendShortcut2, &QShortcut::activated, this, &QtClientWindow::OnStartClicked);
+    connect(sendShortcut2, &QShortcut::activated, this, [this]() {
+        if (!sendOnEnter_)
+        {
+            OnStartClicked();
+        }
+    });
+    sendMenu_ = new QMenu(this);
+    QAction* enterSend = sendMenu_->addAction(QStringLiteral("Enter 发送"));
+    QAction* ctrlSend = sendMenu_->addAction(QStringLiteral("Ctrl+Enter 发送"));
+    enterSend->setCheckable(true);
+    ctrlSend->setCheckable(true);
+    ctrlSend->setChecked(true);
+    connect(enterSend, &QAction::triggered, this, [this, enterSend, ctrlSend]() {
+        sendOnEnter_ = true;
+        enterSend->setChecked(true);
+        ctrlSend->setChecked(false);
+    });
+    connect(ctrlSend, &QAction::triggered, this, [this, enterSend, ctrlSend]() {
+        sendOnEnter_ = false;
+        ctrlSend->setChecked(true);
+        enterSend->setChecked(false);
+    });
+    if (sendMenuButton_)
+    {
+        connect(sendMenuButton_, &QPushButton::clicked, this, [this]() {
+            if (sendMenu_)
+            {
+                sendMenu_->exec(QCursor::pos());
+            }
+        });
+    }
     emojiMenu_ = new QMenu(this);
     const QStringList emojis = {QStringLiteral("😀"), QStringLiteral("😎"), QStringLiteral("🤖"), QStringLiteral("🚀"),
                                 QStringLiteral("🎉"), QStringLiteral("❤️"), QStringLiteral("👍"), QStringLiteral("🔥")};

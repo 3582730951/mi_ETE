@@ -29,6 +29,7 @@ class QSpinBox;
 class QComboBox;
 class QCheckBox;
 class QFrame;
+class QMenu;
 class QListWidget;
 class QListWidgetItem;
 class QSplitter;
@@ -188,6 +189,9 @@ private:
     QFrame* alertBanner_;
     QLabel* alertLabel_;
     QPushButton* alertRetryButton_;
+    QMenu* sendMenu_;
+    QShortcut* sendShortcutEnter_;
+    QShortcut* sendShortcutCtrlEnter_;
     std::unordered_map<std::uint64_t, QLabel*> statusLabels_;
     std::unordered_map<std::uint64_t, QLabel*> statusBadges_;
     std::unordered_map<QString, QListWidgetItem*> sessionItems_;
@@ -235,6 +239,7 @@ private:
     int lastSettingsWidth_;
     bool loggedIn_;
     int activeNavIndex_ = 0;
+    bool sendOnEnter_ = false;
     QStringList activeGroupPalette_;
     QString currentPaletteGroup_;
     std::deque<double> speedHistoryPersisted_;
