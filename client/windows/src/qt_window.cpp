@@ -479,7 +479,7 @@ void QtClientWindow::BuildUi()
     sideLayout->addLayout(snapshotRow);
     sideLayout->addWidget(feedList_, 1);
     sidebarRow->addWidget(listPanel, 1);
-    connect(feedList_, &QListWidget::itemDoubleClicked, this, [this](QListWidgetItem* item) {
+    auto openPeer = [this](QListWidgetItem* item) {
         if (!item)
         {
             return;
@@ -499,7 +499,9 @@ void QtClientWindow::BuildUi()
             return it != sessionIsGroup_.end() ? it->second : false;
         }();
         ShowChatPage(peer, isGroup);
-    });
+    };
+    connect(feedList_, &QListWidget::itemDoubleClicked, this, openPeer);
+    connect(feedList_, &QListWidget::itemClicked, this, openPeer);
     connect(sessionSearch_, &QLineEdit::textChanged, this, [this](const QString& key) {
         const QString keyword = key.trimmed();
         for (int i = 0; i < feedList_->count(); ++i)
@@ -973,7 +975,7 @@ void QtClientWindow::BuildUi()
     hSplit_->setCollapsible(0, true);
     hSplit_->setCollapsible(1, true);
     hSplit_->setCollapsible(2, true);
-    hSplit_->setSizes(QList<int>({220, 400, 80}));
+    hSplit_->setSizes(QList<int>({260, 460, 0}));
     settingsCollapsed_ = true;
     if (toggleSettingsButton_ != nullptr)
     {
@@ -2134,6 +2136,7 @@ void QtClientWindow::LoadSessionCache()
     QFile f(path);
     if (!f.exists() || !f.open(QIODevice::ReadOnly))
     {
+        SimulateSessionPullFromServer();
         return;
     }
     const auto doc = QJsonDocument::fromJson(f.readAll());
@@ -2144,6 +2147,7 @@ void QtClientWindow::LoadSessionCache()
     const auto arr = doc.object().value(QStringLiteral("sessions"));
     if (!arr.isArray())
     {
+        SimulateSessionPullFromServer();
         return;
     }
     sessionIsGroup_.clear();
@@ -2187,6 +2191,12 @@ void QtClientWindow::LoadSessionCache()
         {
             TogglePinSession(id, true);
         }
+    }
+    // 若仍然只有 self，则填充演示会话
+    if (sessionItems_.size() <= 1)
+    {
+        SimulateSessionPullFromServer();
+        LoadSessionCache();
     }
 }
 
@@ -2727,7 +2737,7 @@ void QtClientWindow::ShowListPage()
     }
     if (hSplit_)
     {
-        hSplit_->setSizes(QList<int>({220, 500, 0}));
+        hSplit_->setSizes(QList<int>({260, 460, 0}));
     }
 }
 
@@ -2782,8 +2792,8 @@ void QtClientWindow::ShowChatPage(const QString& peer, bool isGroup)
     if (hSplit_)
     {
         const int right = (isGroup && !settingsCollapsed_) ? (lastSettingsWidth_ > 0 ? lastSettingsWidth_ : 160) : 0;
-        const int chatWidth = isGroup ? 420 : 500;
-        hSplit_->setSizes(QList<int>({220, chatWidth, right}));
+        const int chatWidth = isGroup ? 420 : 460;
+        hSplit_->setSizes(QList<int>({260, chatWidth, right}));
     }
 }
 
