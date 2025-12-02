@@ -358,15 +358,15 @@ void QtClientWindow::BuildUi()
     sidebar_ = new QFrame(this);
     sidebar_->setObjectName(QStringLiteral("Sidebar"));
     auto* sidebarRow = new QHBoxLayout(sidebar_);
-    sidebarRow->setContentsMargins(8, 8, 8, 8);
+    sidebarRow->setContentsMargins(4, 4, 4, 4);
     sidebarRow->setSpacing(10);
     sidebarRow->addWidget(navRail_);
 
     auto* listPanel = new QFrame(sidebar_);
     listPanel->setObjectName(QStringLiteral("ListPanel"));
     auto* sideLayout = new QVBoxLayout(listPanel);
-    sideLayout->setContentsMargins(10, 6, 10, 6);
-    sideLayout->setSpacing(8);
+    sideLayout->setContentsMargins(6, 6, 6, 6);
+    sideLayout->setSpacing(6);
     auto* titleRow = new QHBoxLayout();
     titleRow->setContentsMargins(0, 0, 0, 0);
     titleRow->setSpacing(6);
@@ -1011,6 +1011,7 @@ void QtClientWindow::BuildUi()
     setLayout(root);
     // 默认进入登录页，锁定为登录尺寸
     setFixedSize(QSize(320, 448));
+    setStyleSheet(QStringLiteral("QWidget { background-color: #0b1221; border: none; }"));
 
     sendShortcutEnter_ = new QShortcut(QKeySequence(Qt::Key_Return), this);
     connect(sendShortcutEnter_, &QShortcut::activated, this, [this]() {
@@ -1201,14 +1202,13 @@ void QtClientWindow::ApplyTheme()
         QFrame#Sidebar {
             background: transparent;
             border: none;
-            padding: 6px;
+            padding: 4px;
             min-width: 220px;
         }
         QFrame#ChatPanel, QFrame#SettingsPanel {
-            background: %3;
+            background: transparent;
             border: none;
-            border-radius: 10px;
-            padding: 6px;
+            padding: 0px;
         }
         QLabel#SidebarTitle { font-size: 18px; font-weight: 700; color: #e2e8f0; }
         QLabel#Headline { font-size: 20px; font-weight: 700; color: #cbd5e1; }
