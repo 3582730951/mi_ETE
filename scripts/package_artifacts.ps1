@@ -1,5 +1,3 @@
-$ErrorActionPreference = "Stop"
-
 param(
     [string]$BuildServer = "build/server",
     [string]$BuildClientWin = "build/client/windows",
@@ -8,6 +6,8 @@ param(
     [string]$CertPath = "",
     [string]$CertPassword = ""
 )
+
+$ErrorActionPreference = "Stop"
 
 $root = Split-Path -Parent $PSScriptRoot
 $tmp = Join-Path $root "dist/package"

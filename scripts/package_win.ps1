@@ -1,6 +1,3 @@
-$ErrorActionPreference = "Stop"
-
-# 参数
 param(
     [string]$BuildDir = "build/client/windows",
     [string]$QtDllDir = "",
@@ -9,6 +6,10 @@ param(
     [string]$CertPath = "",
     [string]$CertPassword = ""
 )
+
+$ErrorActionPreference = "Stop"
+
+# 参数
 
 $root = Split-Path -Parent $PSScriptRoot
 $buildCandidates = @($BuildDir, "build/client/windows", "build/client-win", "build/client")
