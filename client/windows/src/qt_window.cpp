@@ -330,10 +330,10 @@ void QtClientWindow::BuildUi()
 
     navRail_ = new QFrame(this);
     navRail_->setObjectName(QStringLiteral("NavRail"));
-    navRail_->setFixedWidth(68);
+    navRail_->setFixedWidth(56);
     auto* navLayout = new QVBoxLayout(navRail_);
     navLayout->setContentsMargins(8, 12, 8, 12);
-    navLayout->setSpacing(10);
+    navLayout->setSpacing(8);
     navGroup_ = new QButtonGroup(this);
     navGroup_->setExclusive(true);
     auto makeNavButton = [&](const QString& text, bool checked) {
@@ -382,11 +382,11 @@ void QtClientWindow::BuildUi()
     auto* accountCard = new QFrame(listPanel);
     accountCard->setObjectName(QStringLiteral("AccountCard"));
     auto* accountLayout = new QHBoxLayout(accountCard);
-    accountLayout->setContentsMargins(10, 8, 10, 8);
+    accountLayout->setContentsMargins(8, 8, 8, 8);
     accountLayout->setSpacing(8);
     auto* avatar = new QLabel(QStringLiteral("U"), accountCard);
     avatar->setObjectName(QStringLiteral("Avatar"));
-    avatar->setFixedSize(36, 36);
+    avatar->setFixedSize(32, 32);
     accountNameLabel_ = new QLabel(QStringLiteral("未登录"), accountCard);
     accountServerLabel_ = new QLabel(defaultServer, accountCard);
     auto* accountInfo = new QVBoxLayout();
@@ -396,7 +396,7 @@ void QtClientWindow::BuildUi()
     accountInfo->addWidget(accountServerLabel_);
     QPushButton* sidebarSwitch = new QPushButton(QStringLiteral("切换"), accountCard);
     sidebarSwitch->setObjectName(QStringLiteral("GhostButton"));
-    sidebarSwitch->setFixedWidth(60);
+    sidebarSwitch->setFixedWidth(52);
     connect(sidebarSwitch, &QPushButton::clicked, this, &QtClientWindow::ShowLoginPage);
     accountLayout->addWidget(avatar);
     accountLayout->addLayout(accountInfo, 1);
@@ -407,6 +407,8 @@ void QtClientWindow::BuildUi()
     sessionSearch_ = new QLineEdit(listPanel);
     sessionSearch_->setPlaceholderText(QStringLiteral("搜索会话 / Session"));
     sessionSearch_->setClearButtonEnabled(true);
+    sessionSearch_->setFixedHeight(32);
+    sessionSearch_->setObjectName(QStringLiteral("SearchBar"));
     feedList_ = new QListWidget(listPanel);
     feedList_->setContextMenuPolicy(Qt::CustomContextMenu);
     connect(feedList_, &QListWidget::customContextMenuRequested, this, [this](const QPoint& pos) {
@@ -1157,28 +1159,27 @@ void QtClientWindow::ApplyTheme()
     const QString sidebarGradBot = darkTheme_ ? QStringLiteral("#0a1120") : QStringLiteral("#e2e8f0");
     setStyleSheet(QStringLiteral(R"(
     QWidget { background-color: %1; color: %2; font-family: "Segoe UI"; }
-    QFrame#NavRail {
-        background: %3;
-        border: 1px solid %4;
-        border-radius: 14px;
-        padding: 6px;
-        min-width: 64px;
-        max-width: 72px;
-    }
+        QFrame#NavRail {
+            background: transparent;
+            border: none;
+            padding: 4px;
+            min-width: 52px;
+            max-width: 58px;
+        }
         QPushButton#NavButton {
             background: transparent;
             color: %2;
-            border: 1px solid %4;
+            border: none;
             border-radius: 12px;
             font-size: 14px;
             font-weight: 700;
         }
         QPushButton#NavButton:checked {
-            background: %5;
+            background: #1e293b;
             color: #ffffff;
-            border-color: %5;
+            border: none;
         }
-        QPushButton#NavButton:hover { border-color: %5; }
+        QPushButton#NavButton:hover { background: #1f2937; }
         QPushButton#HeaderAction {
             background: transparent;
             color: %2;
@@ -1200,7 +1201,7 @@ void QtClientWindow::ApplyTheme()
             border-radius: 10px;
             padding: 6px;
         }
-        QLabel#SidebarTitle { font-size: 18px; font-weight: 700; color: #38bdf8; }
+        QLabel#SidebarTitle { font-size: 18px; font-weight: 700; color: #e2e8f0; }
         QLabel#Headline { font-size: 20px; font-weight: 700; color: #cbd5e1; }
         QLabel#ChatTitle { font-size: 18px; font-weight: 700; color: #e2e8f0; }
         QLabel#StatusPill {
@@ -1222,6 +1223,12 @@ void QtClientWindow::ApplyTheme()
             border: 1px solid %4;
             border-radius: 10px;
             padding: 10px;
+        }
+        QLineEdit#SearchBar {
+            background: #111827;
+            border: 1px solid #0f172a;
+            border-radius: 8px;
+            padding: 6px 8px;
         }
         QPlainTextEdit { min-height: 140px; }
         QPushButton {
