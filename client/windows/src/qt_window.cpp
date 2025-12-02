@@ -370,6 +370,8 @@ void QtClientWindow::BuildUi()
 
     auto* listPanel = new QFrame(sidebar_);
     listPanel->setObjectName(QStringLiteral("ListPanel"));
+    listPanel->setMinimumWidth(120);
+    listPanel->setMaximumWidth(200);
     auto* sideLayout = new QVBoxLayout(listPanel);
     sideLayout->setContentsMargins(4, 4, 4, 4);
     sideLayout->setSpacing(6);
@@ -714,13 +716,13 @@ void QtClientWindow::BuildUi()
     headerRow->addStretch();
     headerActionsLayout_ = new QHBoxLayout();
     headerActionsLayout_->setSpacing(6);
-    callButton_ = new QPushButton(QStringLiteral("语音"), this);
+    callButton_ = new QPushButton(QStringLiteral("📞"), this);
     callButton_->setObjectName(QStringLiteral("HeaderAction"));
-    videoButton_ = new QPushButton(QStringLiteral("视频"), this);
+    videoButton_ = new QPushButton(QStringLiteral("📹"), this);
     videoButton_->setObjectName(QStringLiteral("HeaderAction"));
-    screenShareButton_ = new QPushButton(QStringLiteral("屏幕"), this);
+    screenShareButton_ = new QPushButton(QStringLiteral("🖥"), this);
     screenShareButton_->setObjectName(QStringLiteral("HeaderAction"));
-    fileActionButton_ = new QPushButton(QStringLiteral("文件"), this);
+    fileActionButton_ = new QPushButton(QStringLiteral("📁"), this);
     fileActionButton_->setObjectName(QStringLiteral("HeaderAction"));
     moreActionButton_ = new QPushButton(QStringLiteral("…"), this);
     moreActionButton_->setObjectName(QStringLiteral("HeaderAction"));
@@ -814,13 +816,11 @@ void QtClientWindow::BuildUi()
     messageRow->addWidget(groupInfoPanel_, 1);
     formLayout->addLayout(messageRow, 1);
 
-    composerPanel_ = new QFrame(this);
+        composerPanel_ = new QFrame(this);
     composerPanel_->setObjectName(QStringLiteral("Composer"));
     auto* composerLayout = new QVBoxLayout(composerPanel_);
     composerLayout->setContentsMargins(0, 0, 0, 0);
     composerLayout->setSpacing(6);
-    composerLayout->addWidget(messageEdit_);
-
     auto toolbarRow = new QHBoxLayout();
     toolbarRow->setSpacing(6);
     toolbarRow->addWidget(emojiButton_);
@@ -828,19 +828,25 @@ void QtClientWindow::BuildUi()
     toolbarRow->addWidget(italicButton_);
     toolbarRow->addWidget(codeButton_);
     QPushButton* clipButton = new QPushButton(QStringLiteral("📎"), this);
-    clipButton->setObjectName(QStringLiteral("HeaderAction"));
+    clipButton->setObjectName(QStringLiteral("ToolbarIcon"));
     QPushButton* folderButton = new QPushButton(QStringLiteral("📂"), this);
-    folderButton->setObjectName(QStringLiteral("HeaderAction"));
+    folderButton->setObjectName(QStringLiteral("ToolbarIcon"));
     QPushButton* mailButton = new QPushButton(QStringLiteral("✉"), this);
-    mailButton->setObjectName(QStringLiteral("HeaderAction"));
+    mailButton->setObjectName(QStringLiteral("ToolbarIcon"));
     QPushButton* micButton = new QPushButton(QStringLiteral("🎤"), this);
-    micButton->setObjectName(QStringLiteral("HeaderAction"));
+    micButton->setObjectName(QStringLiteral("ToolbarIcon"));
+    QPushButton* shotButton = new QPushButton(QStringLiteral("📸"), this);
+    shotButton->setObjectName(QStringLiteral("ToolbarIcon"));
     toolbarRow->addWidget(clipButton);
     toolbarRow->addWidget(folderButton);
     toolbarRow->addWidget(mailButton);
     toolbarRow->addWidget(micButton);
+    toolbarRow->addWidget(shotButton);
     toolbarRow->addStretch();
     toolbarRow->addWidget(browseButton_);
+    composerLayout->addLayout(toolbarRow);
+    composerLayout->addWidget(messageEdit_);
+
     connect(folderButton, &QPushButton::clicked, this, [this]() {
         const QString path = QFileDialog::getOpenFileName(this, QStringLiteral("选择文件"), QString(), QStringLiteral("所有文件 (*.*)"));
         if (!path.isEmpty() && mediaEdit_)
@@ -857,7 +863,14 @@ void QtClientWindow::BuildUi()
             messageEdit_->setFocus();
         }
     });
-    composerLayout->addLayout(toolbarRow);
+    connect(shotButton, &QPushButton::clicked, this, [this]() {
+        const QString path = QFileDialog::getOpenFileName(this, QStringLiteral("选择图片"), QString(), QStringLiteral("图片文件 (*.png *.jpg *.jpeg);;所有文件 (*.*)"));
+        if (!path.isEmpty() && mediaEdit_)
+        {
+            mediaEdit_->setText(path);
+            messageEdit_->setFocus();
+        }
+    });
 
     auto* mediaRow = new QHBoxLayout();
     mediaRow->addWidget(new QLabel(QStringLiteral("附件")));
@@ -1042,7 +1055,7 @@ void QtClientWindow::BuildUi()
     hSplit_->addWidget(sidebar_);
     hSplit_->setStretchFactor(0, 1);
     hSplit_->setCollapsible(0, true);
-    hSplit_->setSizes(QList<int>({160}));
+    hSplit_->setSizes(QList<int>({140}));
     settingsCollapsed_ = true;
     if (toggleSettingsButton_ != nullptr)
     {
@@ -1236,8 +1249,8 @@ void QtClientWindow::ApplyTheme()
             background: transparent;
             border: none;
             padding: 4px;
-            min-width: 48px;
-            max-width: 52px;
+            min-width: 36px;
+            max-width: 40px;
         }
         QPushButton#NavButton {
             background: transparent;
@@ -2876,7 +2889,7 @@ void QtClientWindow::ShowListPage()
     }
     if (hSplit_)
     {
-        hSplit_->setSizes(QList<int>({160}));
+        hSplit_->setSizes(QList<int>({140}));
     }
 }
 
@@ -3876,12 +3889,12 @@ void QtClientWindow::ApplySessionWidget(const QString& peer, QListWidgetItem* it
     QWidget* w = new QWidget(feedList_);
     auto* row = new QHBoxLayout(w);
     row->setContentsMargins(8, 4, 8, 4);
-    row->setSpacing(8);
+    row->setSpacing(6);
 
     auto* avatar = new QLabel(w);
     avatar->setObjectName(QStringLiteral("Avatar"));
     avatar->setAlignment(Qt::AlignCenter);
-    avatar->setFixedSize(40, 40);
+    avatar->setFixedSize(32, 32);
     const bool isGroup = [&]() {
         auto it = sessionIsGroup_.find(peer);
         return it != sessionIsGroup_.end() ? it->second : false;
@@ -3898,6 +3911,7 @@ void QtClientWindow::ApplySessionWidget(const QString& peer, QListWidgetItem* it
         nameText.prepend(QStringLiteral("★ "));
     }
     auto* name = new QLabel(nameText, w);
+    name->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
     name->setObjectName(QStringLiteral("SessionName"));
     QString metaText = online ? QStringLiteral("在线") : QStringLiteral("离线");
     if ([&]() {
