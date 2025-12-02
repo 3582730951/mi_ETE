@@ -161,6 +161,8 @@ QtClientWindow::QtClientWindow(QWidget* parent)
       headerActionsLayout_(nullptr),
       draggingWindow_(false),
       dragOffset_(),
+      chatWindow_(nullptr),
+      chatWindowLayout_(nullptr),
       navGroup_(nullptr),
       mediaProgress_(nullptr),
       mediaStatusLabel_(nullptr),
@@ -986,15 +988,9 @@ void QtClientWindow::BuildUi()
 
     hSplit_ = new QSplitter(Qt::Horizontal, this);
     hSplit_->addWidget(sidebar_);
-    hSplit_->addWidget(mainPanel_);
-    hSplit_->addWidget(settingsPanel_);
     hSplit_->setStretchFactor(0, 1);
-    hSplit_->setStretchFactor(1, 3);
-    hSplit_->setStretchFactor(2, 2);
     hSplit_->setCollapsible(0, true);
-    hSplit_->setCollapsible(1, true);
-    hSplit_->setCollapsible(2, true);
-    hSplit_->setSizes(QList<int>({260, 460, 0}));
+    hSplit_->setSizes(QList<int>({180}));
     settingsCollapsed_ = true;
     if (toggleSettingsButton_ != nullptr)
     {
@@ -1005,7 +1001,7 @@ void QtClientWindow::BuildUi()
     mainPage_ = new QWidget(this);
     auto* mainPageLayout = new QHBoxLayout(mainPage_);
     mainPageLayout->setContentsMargins(0, 0, 0, 0);
-    mainPageLayout->setSpacing(10);
+    mainPageLayout->setSpacing(0);
     mainPageLayout->addWidget(hSplit_, 1);
 
     mainStack_->addWidget(loginPage_);
@@ -2736,6 +2732,10 @@ void QtClientWindow::ShowListPage()
     currentPeer_.clear();
     currentPeerIsGroup_ = false;
     setFixedSize(QSize(372, 652));
+    if (chatWindow_)
+    {
+        chatWindow_->hide();
+    }
     if (sessionLabel_)
     {
         sessionLabel_->setText(QStringLiteral("选择会话"));
@@ -2786,7 +2786,7 @@ void QtClientWindow::ShowListPage()
     }
     if (hSplit_)
     {
-        hSplit_->setSizes(QList<int>({260, 460, 0}));
+        hSplit_->setSizes(QList<int>({220}));
     }
 }
 
@@ -2794,7 +2794,26 @@ void QtClientWindow::ShowChatPage(const QString& peer, bool isGroup)
 {
     currentPeer_ = peer;
     currentPeerIsGroup_ = isGroup;
-    setFixedSize(QSize(720, 800));
+    // spawn or reuse chat window
+    if (chatWindow_ == nullptr)
+    {
+        chatWindow_ = new QWidget();
+        chatWindow_->setWindowFlags(Qt::FramelessWindowHint | Qt::Window);
+        chatWindow_->setAttribute(Qt::WA_TranslucentBackground, false);
+        chatWindowLayout_ = new QVBoxLayout(chatWindow_);
+        chatWindowLayout_->setContentsMargins(0, 0, 0, 0);
+        chatWindowLayout_->addWidget(mainPanel_);
+    }
+    if (mainPanel_->parent() != chatWindow_)
+    {
+        mainPanel_->setParent(chatWindow_);
+        if (chatWindowLayout_)
+        {
+            chatWindowLayout_->addWidget(mainPanel_);
+        }
+    }
+    chatWindow_->setFixedSize(QSize(720, 800));
+    chatWindow_->show();
     if (emptyStateLabel_)
     {
         emptyStateLabel_->setVisible(false);
@@ -2845,16 +2864,6 @@ void QtClientWindow::ShowChatPage(const QString& peer, bool isGroup)
         groupMembers_->addItem(QStringLiteral("成员A"));
         groupMembers_->addItem(QStringLiteral("成员B"));
         groupMembers_->addItem(QStringLiteral("成员C"));
-    }
-    if (mainStack_ && mainPage_)
-    {
-        mainStack_->setCurrentWidget(mainPage_);
-    }
-    if (hSplit_)
-    {
-        const int right = (isGroup && !settingsCollapsed_) ? (lastSettingsWidth_ > 0 ? lastSettingsWidth_ : 160) : 0;
-        const int chatWidth = isGroup ? 420 : 440;
-        hSplit_->setSizes(QList<int>({260, chatWidth, right}));
     }
 }
 

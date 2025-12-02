@@ -159,6 +159,8 @@ private:
     QHBoxLayout* headerActionsLayout_;
     bool draggingWindow_{false};
     QPoint dragOffset_;
+    QWidget* chatWindow_{nullptr};
+    QVBoxLayout* chatWindowLayout_{nullptr};
     QButtonGroup* navGroup_;
     QProgressBar* mediaProgress_;
     QLabel* mediaStatusLabel_;
