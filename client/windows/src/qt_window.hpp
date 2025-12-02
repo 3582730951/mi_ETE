@@ -179,6 +179,9 @@ private:
     QFrame* sidebar_;
     QFrame* navRail_;
     QFrame* mainPanel_;
+    QFrame* groupInfoPanel_;
+    QLabel* groupAnnouncement_;
+    QListWidget* groupMembers_;
     QFrame* settingsPanel_;
     QSplitter* hSplit_;
     QLabel* sessionLabel_;

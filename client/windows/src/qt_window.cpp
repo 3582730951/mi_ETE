@@ -184,6 +184,9 @@ QtClientWindow::QtClientWindow(QWidget* parent)
       sidebar_(nullptr),
       navRail_(nullptr),
       mainPanel_(nullptr),
+      groupInfoPanel_(nullptr),
+      groupAnnouncement_(nullptr),
+      groupMembers_(nullptr),
       settingsPanel_(nullptr),
       hSplit_(nullptr),
       sessionLabel_(nullptr),
@@ -656,15 +659,15 @@ void QtClientWindow::BuildUi()
     headerRow->addSpacing(6);
     auto* headerActions = new QHBoxLayout();
     headerActions->setSpacing(6);
-    callButton_ = new QPushButton(QStringLiteral("☎"), this);
+    callButton_ = new QPushButton(QStringLiteral("📞"), this);
     callButton_->setObjectName(QStringLiteral("HeaderAction"));
-    videoButton_ = new QPushButton(QStringLiteral("摄"), this);
+    videoButton_ = new QPushButton(QStringLiteral("🎥"), this);
     videoButton_->setObjectName(QStringLiteral("HeaderAction"));
-    screenShareButton_ = new QPushButton(QStringLiteral("屏"), this);
+    screenShareButton_ = new QPushButton(QStringLiteral("🖥"), this);
     screenShareButton_->setObjectName(QStringLiteral("HeaderAction"));
-    fileActionButton_ = new QPushButton(QStringLiteral("文"), this);
+    fileActionButton_ = new QPushButton(QStringLiteral("📁"), this);
     fileActionButton_->setObjectName(QStringLiteral("HeaderAction"));
-    moreActionButton_ = new QPushButton(QStringLiteral("…"), this);
+    moreActionButton_ = new QPushButton(QStringLiteral("⋯"), this);
     moreActionButton_->setObjectName(QStringLiteral("HeaderAction"));
     headerActions->addWidget(callButton_);
     headerActions->addWidget(videoButton_);
@@ -713,7 +716,26 @@ void QtClientWindow::BuildUi()
     messageView_->setSpacing(8);
     messageView_->setSelectionMode(QAbstractItemView::NoSelection);
     messageView_->setVerticalScrollMode(QAbstractItemView::ScrollPerPixel);
-    formLayout->addWidget(messageView_, 1);
+    auto* messageRow = new QHBoxLayout();
+    messageRow->setContentsMargins(0, 0, 0, 0);
+    messageRow->setSpacing(8);
+    messageRow->addWidget(messageView_, 3);
+
+    groupInfoPanel_ = new QFrame(this);
+    groupInfoPanel_->setObjectName(QStringLiteral("SettingsPanel"));
+    groupInfoPanel_->setMinimumWidth(220);
+    auto* groupLayout = new QVBoxLayout(groupInfoPanel_);
+    auto* groupTitle = new QLabel(QStringLiteral("群公告 / 成员"), groupInfoPanel_);
+    groupTitle->setObjectName(QStringLiteral("SidebarTitle"));
+    groupAnnouncement_ = new QLabel(QStringLiteral("公告：暂无"), groupInfoPanel_);
+    groupAnnouncement_->setWordWrap(true);
+    groupMembers_ = new QListWidget(groupInfoPanel_);
+    groupLayout->addWidget(groupTitle);
+    groupLayout->addWidget(groupAnnouncement_);
+    groupLayout->addWidget(groupMembers_, 1);
+    groupInfoPanel_->setVisible(false);
+    messageRow->addWidget(groupInfoPanel_, 1);
+    formLayout->addLayout(messageRow, 1);
 
     auto composerPanel = new QFrame(this);
     composerPanel->setObjectName(QStringLiteral("Composer"));
@@ -727,13 +749,13 @@ void QtClientWindow::BuildUi()
     toolbarRow->addWidget(boldButton_);
     toolbarRow->addWidget(italicButton_);
     toolbarRow->addWidget(codeButton_);
-    QPushButton* clipButton = new QPushButton(QStringLiteral("剪"), this);
+    QPushButton* clipButton = new QPushButton(QStringLiteral("✂"), this);
     clipButton->setObjectName(QStringLiteral("HeaderAction"));
-    QPushButton* folderButton = new QPushButton(QStringLiteral("文"), this);
+    QPushButton* folderButton = new QPushButton(QStringLiteral("📁"), this);
     folderButton->setObjectName(QStringLiteral("HeaderAction"));
-    QPushButton* mailButton = new QPushButton(QStringLiteral("邮"), this);
+    QPushButton* mailButton = new QPushButton(QStringLiteral("✉"), this);
     mailButton->setObjectName(QStringLiteral("HeaderAction"));
-    QPushButton* micButton = new QPushButton(QStringLiteral("语"), this);
+    QPushButton* micButton = new QPushButton(QStringLiteral("🎤"), this);
     micButton->setObjectName(QStringLiteral("HeaderAction"));
     toolbarRow->addWidget(clipButton);
     toolbarRow->addWidget(folderButton);
@@ -1233,6 +1255,7 @@ void QtClientWindow::ApplyTheme()
             border-radius: 12px;
             padding: 6px;
         }
+        QListWidget#GroupMembers { background:%3; border:1px solid %4; border-radius:10px; }
         QProgressBar {
             background: %3;
             border-radius: 10px;
@@ -2649,6 +2672,17 @@ void QtClientWindow::ShowChatPage(const QString& peer, bool isGroup)
     if (channelStatusLabel_)
     {
         channelStatusLabel_->setText(isGroup ? QStringLiteral("频道: 群聊") : QStringLiteral("频道: 单聊"));
+    }
+    if (groupInfoPanel_)
+    {
+        groupInfoPanel_->setVisible(isGroup);
+    }
+    if (isGroup && groupMembers_)
+    {
+        groupMembers_->clear();
+        groupMembers_->addItem(QStringLiteral("成员A"));
+        groupMembers_->addItem(QStringLiteral("成员B"));
+        groupMembers_->addItem(QStringLiteral("成员C"));
     }
     if (mainStack_ && mainPage_)
     {
