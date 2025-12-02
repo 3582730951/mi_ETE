@@ -383,6 +383,37 @@ void QtClientWindow::BuildUi()
     sessionSearch_->setPlaceholderText(QStringLiteral("搜索会话 / Session"));
     sessionSearch_->setClearButtonEnabled(true);
     feedList_ = new QListWidget(this);
+    feedList_->setContextMenuPolicy(Qt::CustomContextMenu);
+    connect(feedList_, &QListWidget::customContextMenuRequested, this, [this](const QPoint& pos) {
+        QListWidgetItem* item = feedList_->itemAt(pos);
+        if (!item)
+        {
+            return;
+        }
+        const QString peer = item->data(Qt::UserRole + 1).toString();
+        QMenu menu(this);
+        QAction* openAct = menu.addAction(QStringLiteral("打开会话"));
+        bool pinned = sessionPinned_.value(peer, false);
+        QAction* pinAct = menu.addAction(pinned ? QStringLiteral("取消置顶") : QStringLiteral("置顶"));
+        bool muted = sessionMuted_.value(peer, false);
+        QAction* muteAct = menu.addAction(muted ? QStringLiteral("取消免打扰") : QStringLiteral("免打扰"));
+        QAction* chosen = menu.exec(feedList_->mapToGlobal(pos));
+        if (chosen == openAct)
+        {
+            targetSpin_->setValue(peer.toInt());
+            ShowChatPage(peer, sessionIsGroup_.value(peer, false));
+        }
+        else if (chosen == pinAct)
+        {
+            TogglePinSession(peer, !pinned);
+            SaveSettings();
+        }
+        else if (chosen == muteAct)
+        {
+            ToggleMuteSession(peer, !muted);
+            SaveSettings();
+        }
+    });
     refreshSessions_ = new QPushButton(QStringLiteral("拉取会话"), this);
     connect(refreshSessions_, &QPushButton::clicked, this, [this]() {
         FetchRemoteSessions();
@@ -415,17 +446,18 @@ void QtClientWindow::BuildUi()
         {
             return;
         }
-        QRegularExpression re(QStringLiteral("(\\d+)"));
-        auto m = re.match(item->text());
-        if (m.hasMatch())
+        const QString peer = item->data(Qt::UserRole + 1).toString();
+        if (peer.isEmpty())
         {
-            targetSpin_->setValue(m.captured(1).toInt());
-            sessionLabel_->setText(QStringLiteral("目标: %1").arg(m.captured(1)));
-            SaveSettings();
-            unreadCount_[m.captured(1)] = 0;
-            UpdateSessionPresence(m.captured(1));
-            ShowChatPage(m.captured(1), false);
+            return;
         }
+        targetSpin_->setValue(peer.toInt());
+        sessionLabel_->setText(QStringLiteral("目标: %1").arg(peer));
+        SaveSettings();
+        unreadCount_[peer] = 0;
+        UpdateSessionPresence(peer);
+        const bool isGroup = sessionIsGroup_.value(peer, false);
+        ShowChatPage(peer, isGroup);
     });
     connect(sessionSearch_, &QLineEdit::textChanged, this, [this](const QString& key) {
         const QString keyword = key.trimmed();
@@ -943,6 +975,9 @@ void QtClientWindow::BuildUi()
     sendMenu_ = new QMenu(this);
     QAction* enterSend = sendMenu_->addAction(QStringLiteral("Enter 发送"));
     QAction* ctrlSend = sendMenu_->addAction(QStringLiteral("Ctrl+Enter 发送"));
+    sendMenu_->addSeparator();
+    QAction* sendAndClose = sendMenu_->addAction(QStringLiteral("发送并关闭窗口"));
+    QAction* sendAndBack = sendMenu_->addAction(QStringLiteral("发送并返回列表"));
     enterSend->setCheckable(true);
     ctrlSend->setCheckable(true);
     ctrlSend->setChecked(true);
@@ -955,6 +990,14 @@ void QtClientWindow::BuildUi()
         sendOnEnter_ = false;
         ctrlSend->setChecked(true);
         enterSend->setChecked(false);
+    });
+    connect(sendAndClose, &QAction::triggered, this, [this]() {
+        OnStartClicked();
+        close();
+    });
+    connect(sendAndBack, &QAction::triggered, this, [this]() {
+        OnStartClicked();
+        ShowListPage();
     });
     if (sendMenuButton_)
     {
@@ -1667,8 +1710,13 @@ void QtClientWindow::UpdateSessionPresence(const QString& peer)
     {
         QListWidgetItem* item = new QListWidgetItem(QStringLiteral("会话 %1").arg(peer), feedList_);
         item->setForeground(QColor("#38bdf8"));
+        item->setData(Qt::UserRole + 1, peer);
         sessionItems_[peer] = item;
         feedList_->addItem(item);
+        if (sessionIsGroup_.find(peer) == sessionIsGroup_.end())
+        {
+            sessionIsGroup_[peer] = false;
+        }
         ApplySessionWidget(peer, item, true);
     }
     else
@@ -1709,6 +1757,61 @@ void QtClientWindow::UpdateSessionBadge(const QString& peer)
     {
         badge->setVisible(false);
     }
+}
+
+void QtClientWindow::TogglePinSession(const QString& peer, bool pinned)
+{
+    if (!feedList_)
+    {
+        return;
+    }
+    sessionPinned_[peer] = pinned;
+    auto it = sessionItems_.find(peer);
+    if (it == sessionItems_.end() || it->second == nullptr)
+    {
+        return;
+    }
+    QListWidgetItem* item = it->second;
+    QWidget* widget = feedList_->itemWidget(item);
+    const int row = feedList_->row(item);
+    feedList_->takeItem(row);
+    const int insertPos = pinned ? 0 : feedList_->count();
+    feedList_->insertItem(insertPos, item);
+    if (widget)
+    {
+        feedList_->setItemWidget(item, widget);
+    }
+    auto nameIt = sessionNameLabels_.find(peer);
+    if (nameIt != sessionNameLabels_.end() && nameIt->second)
+    {
+        QString base = peer == QStringLiteral("self") ? QStringLiteral("自己") : QStringLiteral("会话 %1").arg(peer);
+        if (pinned)
+        {
+            base.prepend(QStringLiteral("★ "));
+        }
+        nameIt->second->setText(base);
+    }
+    SaveSettings();
+}
+
+void QtClientWindow::ToggleMuteSession(const QString& peer, bool muted)
+{
+    sessionMuted_[peer] = muted;
+    auto metaIt = sessionMetaLabels_.find(peer);
+    if (metaIt != sessionMetaLabels_.end() && metaIt->second)
+    {
+        QString base = metaIt->second->text();
+        if (muted && !base.contains(QStringLiteral("免打扰")))
+        {
+            base.append(QStringLiteral(" · 免打扰"));
+        }
+        else if (!muted)
+        {
+            base = base.replace(QStringLiteral(" · 免打扰"), QString());
+        }
+        metaIt->second->setText(base);
+    }
+    SaveSettings();
 }
 
 bool QtClientWindow::eventFilter(QObject* watched, QEvent* event)
@@ -1987,6 +2090,9 @@ void QtClientWindow::LoadSessionCache()
     {
         return;
     }
+    sessionIsGroup_.clear();
+    sessionPinned_.clear();
+    sessionMuted_.clear();
     for (const auto& v : arr.toArray())
     {
         if (!v.isObject())
@@ -1998,21 +2104,33 @@ void QtClientWindow::LoadSessionCache()
         const QString name = obj.value(QStringLiteral("name")).toString(id);
         const bool online = obj.value(QStringLiteral("online")).toBool(false);
         const int unread = obj.value(QStringLiteral("unread")).toInt(0);
+        const bool isGroup = obj.value(QStringLiteral("is_group")).toBool(false);
+        const bool pinned = obj.value(QStringLiteral("pinned")).toBool(false);
+        const bool muted = obj.value(QStringLiteral("muted")).toBool(false);
         if (id.isEmpty() || sessionItems_.find(id) != sessionItems_.end())
         {
             continue;
         }
         unreadCount_[id] = unread;
+        sessionIsGroup_[id] = isGroup;
+        sessionPinned_[id] = pinned;
+        sessionMuted_[id] = muted;
         const QString badge = unread > 0 ? QStringLiteral(" · 未读 %1").arg(unread) : QString();
         auto* item = new QListWidgetItem(QStringLiteral("%1 (%2)%3").arg(name, id, badge), feedList_);
+        item->setData(Qt::UserRole + 1, id);
         item->setForeground(online ? QColor("#22c55e") : QColor("#94a3b8"));
         feedList_->addItem(item);
         sessionItems_[id] = item;
+        sessionIsGroup_[id] = isGroup;
         if (online)
         {
             lastSeen_[id] = QDateTime::currentDateTime();
         }
         ApplySessionWidget(id, item, online);
+        if (pinned)
+        {
+            TogglePinSession(id, true);
+        }
     }
 }
 
@@ -2043,10 +2161,12 @@ QJsonArray QtClientWindow::BuildDemoSessions() const
     a.insert(QStringLiteral("id"), QStringLiteral("10001"));
     a.insert(QStringLiteral("name"), QStringLiteral("演示 A"));
     a.insert(QStringLiteral("online"), true);
+    a.insert(QStringLiteral("is_group"), false);
     QJsonObject b;
     b.insert(QStringLiteral("id"), QStringLiteral("10002"));
     b.insert(QStringLiteral("name"), QStringLiteral("演示 B"));
     b.insert(QStringLiteral("online"), false);
+    b.insert(QStringLiteral("is_group"), true);
     demo.append(a);
     demo.append(b);
     return demo;
@@ -2201,7 +2321,9 @@ void QtClientWindow::ApplySessionList(const std::vector<std::pair<std::uint32_t,
     sessionBadgeLabels_.clear();
     sessionNameLabels_.clear();
     sessionMetaLabels_.clear();
-    sessionMetaLabels_.clear();
+    sessionIsGroup_.clear();
+    sessionPinned_.clear();
+    sessionMuted_.clear();
     lastSeen_.clear();
     QJsonArray arr;
     for (const auto& item : sessions)
@@ -2210,12 +2332,18 @@ void QtClientWindow::ApplySessionList(const std::vector<std::pair<std::uint32_t,
         obj.insert(QStringLiteral("id"), QString::number(item.first));
         obj.insert(QStringLiteral("name"), QString::fromWCharArray(item.second.c_str()));
         obj.insert(QStringLiteral("online"), true);
-        arr.append(obj);
-        lastSeen_[QString::number(item.first)] = QDateTime::currentDateTime();
         const QString peer = QString::number(item.first);
+        const bool isGroup = QString::fromWCharArray(item.second.c_str()).contains(QStringLiteral("群"));
+        obj.insert(QStringLiteral("is_group"), isGroup);
+        obj.insert(QStringLiteral("pinned"), sessionPinned_[peer]);
+        obj.insert(QStringLiteral("muted"), sessionMuted_[peer]);
+        arr.append(obj);
+        lastSeen_[peer] = QDateTime::currentDateTime();
         auto* listItem = new QListWidgetItem(QStringLiteral("会话 %1").arg(peer), feedList_);
+        listItem->setData(Qt::UserRole + 1, peer);
         feedList_->addItem(listItem);
         sessionItems_[peer] = listItem;
+        sessionIsGroup_[peer] = isGroup;
         ApplySessionWidget(peer, listItem, true);
     }
     PersistSessionsToFile(arr);
@@ -2736,6 +2864,9 @@ void QtClientWindow::SaveSettings()
         const bool online = lastSeen_.find(sid) != lastSeen_.end();
         s.insert(QStringLiteral("online"), online);
         s.insert(QStringLiteral("unread"), unreadCount_[sid]);
+        s.insert(QStringLiteral("is_group"), sessionIsGroup_.value(sid, false));
+        s.insert(QStringLiteral("pinned"), sessionPinned_.value(sid, false));
+        s.insert(QStringLiteral("muted"), sessionMuted_.value(sid, false));
         sessions.append(s);
     }
     obj.insert(QStringLiteral("sessions"), sessions);
@@ -3437,6 +3568,7 @@ void QtClientWindow::ApplySessionWidget(const QString& peer, QListWidgetItem* it
     {
         return;
     }
+    item->setData(Qt::UserRole + 1, peer);
     QWidget* w = new QWidget(feedList_);
     auto* row = new QHBoxLayout(w);
     row->setContentsMargins(8, 4, 8, 4);
@@ -3446,12 +3578,23 @@ void QtClientWindow::ApplySessionWidget(const QString& peer, QListWidgetItem* it
     avatar->setObjectName(QStringLiteral("Avatar"));
     avatar->setAlignment(Qt::AlignCenter);
     avatar->setFixedSize(36, 36);
-    QString avatarText = peer == QStringLiteral("self") ? QStringLiteral("我") : peer.right(2);
+    const bool isGroup = sessionIsGroup_.value(peer, false);
+    QString avatarText = peer == QStringLiteral("self") ? QStringLiteral("我") : (isGroup ? QStringLiteral("群") : peer.right(2));
     avatar->setText(avatarText);
 
-    auto* name = new QLabel(peer == QStringLiteral("self") ? QStringLiteral("自己") : QStringLiteral("会话 %1").arg(peer), w);
+    QString nameText = peer == QStringLiteral("self") ? QStringLiteral("自己") : QStringLiteral("会话 %1").arg(peer);
+    if (sessionPinned_.value(peer, false))
+    {
+        nameText.prepend(QStringLiteral("★ "));
+    }
+    auto* name = new QLabel(nameText, w);
     name->setObjectName(QStringLiteral("SessionName"));
-    auto* meta = new QLabel(online ? QStringLiteral("在线") : QStringLiteral("离线"), w);
+    QString metaText = online ? QStringLiteral("在线") : QStringLiteral("离线");
+    if (sessionMuted_.value(peer, false))
+    {
+        metaText.append(QStringLiteral(" · 免打扰"));
+    }
+    auto* meta = new QLabel(metaText, w);
     meta->setObjectName(QStringLiteral("SessionMeta"));
     auto* nameCol = new QVBoxLayout();
     nameCol->setContentsMargins(0, 0, 0, 0);

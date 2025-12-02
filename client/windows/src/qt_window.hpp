@@ -116,6 +116,8 @@ private:
     void UpdateSessionBadge(const QString& peer);
     void ShowListPage();
     void ShowChatPage(const QString& peer, bool isGroup);
+    void TogglePinSession(const QString& peer, bool pinned);
+    void ToggleMuteSession(const QString& peer, bool muted);
     void ToggleSettings();
     void ShowLoginPage();
     void ApplyLogin();
@@ -204,6 +206,9 @@ private:
     std::unordered_map<QString, QLabel*> sessionBadgeLabels_;
     std::unordered_map<QString, QLabel*> sessionNameLabels_;
     std::unordered_map<QString, QLabel*> sessionMetaLabels_;
+    std::unordered_map<QString, bool> sessionIsGroup_;
+    std::unordered_map<QString, bool> sessionPinned_;
+    std::unordered_map<QString, bool> sessionMuted_;
     std::unordered_map<QLabel*, QPixmap> mediaPreviewCache_;
     std::unordered_map<std::uint64_t, QPointer<QLabel>> mediaPreviewById_;
     std::unordered_map<std::uint64_t, QPointer<QLabel>> mediaOverlay_;
