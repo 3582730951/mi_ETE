@@ -943,7 +943,7 @@ void QtClientWindow::BuildUi()
     loginPage_ = new QFrame(this);
     loginPage_->setObjectName(QStringLiteral("LoginPage"));
     auto* loginLayout = new QVBoxLayout(loginPage_);
-    loginLayout->setContentsMargins(120, 80, 120, 80);
+    loginLayout->setContentsMargins(40, 48, 40, 48);
     loginLayout->setSpacing(18);
     auto* loginTitle = new QLabel(QStringLiteral("Mi 聊天 · 登录"));
     loginTitle->setObjectName(QStringLiteral("Headline"));
@@ -953,27 +953,32 @@ void QtClientWindow::BuildUi()
     loginUserEdit_ = new QLineEdit(QStringLiteral("user"), this);
     loginUserEdit_->setPlaceholderText(QStringLiteral("账号"));
     loginUserEdit_->setClearButtonEnabled(true);
+    loginUserEdit_->setMaximumWidth(360);
     loginPassEdit_ = new QLineEdit(QStringLiteral("pass"), this);
     loginPassEdit_->setPlaceholderText(QStringLiteral("密码"));
     loginPassEdit_->setEchoMode(QLineEdit::Password);
     loginPassEdit_->setClearButtonEnabled(true);
+    loginPassEdit_->setMaximumWidth(360);
     loginRemember_ = new QCheckBox(QStringLiteral("记住账号"), this);
     QPushButton* loginBtn = new QPushButton(QStringLiteral("进入聊天"), this);
     loginBtn->setDefault(true);
     loginBtn->setObjectName(QStringLiteral("PrimaryButton"));
+    loginBtn->setMinimumWidth(320);
+    loginBtn->setMaximumWidth(360);
     connect(loginBtn, &QPushButton::clicked, this, &QtClientWindow::ApplyLogin);
     connect(loginPassEdit_, &QLineEdit::returnPressed, this, &QtClientWindow::ApplyLogin);
     connect(loginUserEdit_, &QLineEdit::returnPressed, this, &QtClientWindow::ApplyLogin);
     auto* loginCenter = new QVBoxLayout();
     loginCenter->setSpacing(12);
+    loginCenter->setAlignment(Qt::AlignHCenter);
     loginCenter->addWidget(loginTitle, 0, Qt::AlignHCenter);
     loginCenter->addWidget(loginServerLabel_, 0, Qt::AlignHCenter);
     loginCenter->addSpacing(10);
-    loginCenter->addWidget(loginUserEdit_);
-    loginCenter->addWidget(loginPassEdit_);
-    loginCenter->addWidget(loginRemember_);
+    loginCenter->addWidget(loginUserEdit_, 0, Qt::AlignHCenter);
+    loginCenter->addWidget(loginPassEdit_, 0, Qt::AlignHCenter);
+    loginCenter->addWidget(loginRemember_, 0, Qt::AlignLeft);
     loginCenter->addSpacing(4);
-    loginCenter->addWidget(loginBtn);
+    loginCenter->addWidget(loginBtn, 0, Qt::AlignHCenter);
     loginCenter->addStretch();
     loginLayout->addStretch();
     loginLayout->addLayout(loginCenter);
@@ -1010,7 +1015,9 @@ void QtClientWindow::BuildUi()
     auto root = new QHBoxLayout(this);
     root->addWidget(mainStack_);
     setLayout(root);
-    resize(1040, 760);
+    setMinimumSize(QSize(360, 520));
+    setMaximumSize(QSize(560, 760));
+    resize(420, 640);
 
     sendShortcutEnter_ = new QShortcut(QKeySequence(Qt::Key_Return), this);
     connect(sendShortcutEnter_, &QShortcut::activated, this, [this]() {
@@ -2671,6 +2678,9 @@ void QtClientWindow::ShowLoginPage()
     {
         mainStack_->setCurrentWidget(loginPage_);
     }
+    setMinimumSize(QSize(360, 520));
+    setMaximumSize(QSize(560, 760));
+    resize(420, 640);
 }
 
 void QtClientWindow::ApplyLogin()
@@ -2702,6 +2712,8 @@ void QtClientWindow::ShowListPage()
 {
     currentPeer_.clear();
     currentPeerIsGroup_ = false;
+    setMaximumSize(QSize(QWIDGETSIZE_MAX, QWIDGETSIZE_MAX));
+    setMinimumSize(QSize(460, 640));
     if (sessionLabel_)
     {
         sessionLabel_->setText(QStringLiteral("选择会话"));
@@ -2749,6 +2761,8 @@ void QtClientWindow::ShowChatPage(const QString& peer, bool isGroup)
 {
     currentPeer_ = peer;
     currentPeerIsGroup_ = isGroup;
+    setMaximumSize(QSize(QWIDGETSIZE_MAX, QWIDGETSIZE_MAX));
+    setMinimumSize(QSize(900, 680));
     if (emptyStateLabel_)
     {
         emptyStateLabel_->setVisible(false);
