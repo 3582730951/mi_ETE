@@ -38,7 +38,9 @@ class QCloseEvent;
 class QHBoxLayout;
 class QNetworkAccessManager;
 class QTabWidget;
+class QButtonGroup;
 class QStackedWidget;
+class QToolButton;
 
 class QtClientWindow : public QWidget
 {
@@ -138,6 +140,12 @@ private:
     QPushButton* toggleSidebarButton_;
     QPushButton* toggleSettingsButton_;
     QPushButton* switchAccountButton_;
+    QPushButton* callButton_;
+    QPushButton* videoButton_;
+    QPushButton* screenShareButton_;
+    QPushButton* fileActionButton_;
+    QPushButton* moreActionButton_;
+    QButtonGroup* navGroup_;
     QProgressBar* mediaProgress_;
     QLabel* mediaStatusLabel_;
     QLabel* speedStatusLabel_;
@@ -151,6 +159,7 @@ private:
     QLineEdit* sessionSearch_;
     QStackedWidget* mainStack_;
     QWidget* loginPage_;
+    QWidget* mainPage_;
     QLabel* loginServerLabel_;
     QLineEdit* loginUserEdit_;
     QLineEdit* loginPassEdit_;
@@ -159,10 +168,12 @@ private:
     QLabel* accountNameLabel_;
     QLabel* accountServerLabel_;
     QFrame* sidebar_;
+    QFrame* navRail_;
     QFrame* mainPanel_;
     QFrame* settingsPanel_;
     QSplitter* hSplit_;
     QLabel* sessionLabel_;
+    QLabel* channelStatusLabel_;
     QComboBox* themeSwitch_;
     QComboBox* accentSwitch_;
     QComboBox* paletteGroupBox_;
@@ -172,6 +183,7 @@ private:
     QPushButton* boldButton_;
     QPushButton* italicButton_;
     QPushButton* codeButton_;
+    QPushButton* sendMenuButton_;
     QLabel* networkStatusLabel_;
     QFrame* alertBanner_;
     QLabel* alertLabel_;
@@ -222,6 +234,7 @@ private:
     bool settingsCollapsed_;
     int lastSettingsWidth_;
     bool loggedIn_;
+    int activeNavIndex_ = 0;
     QStringList activeGroupPalette_;
     QString currentPaletteGroup_;
     std::deque<double> speedHistoryPersisted_;
