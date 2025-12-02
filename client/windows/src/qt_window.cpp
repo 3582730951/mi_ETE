@@ -332,7 +332,7 @@ void QtClientWindow::BuildUi()
 
     navRail_ = new QFrame(this);
     navRail_->setObjectName(QStringLiteral("NavRail"));
-    navRail_->setFixedWidth(48);
+    navRail_->setFixedWidth(44);
     auto* navLayout = new QVBoxLayout(navRail_);
     navLayout->setContentsMargins(8, 12, 8, 12);
     navLayout->setSpacing(8);
@@ -1015,11 +1015,11 @@ void QtClientWindow::BuildUi()
     auto root = new QHBoxLayout(this);
     root->addWidget(mainStack_);
     setWindowFlags(Qt::FramelessWindowHint | Qt::Window);
-    setAttribute(Qt::WA_TranslucentBackground, true);
+    setAttribute(Qt::WA_TranslucentBackground, false);
     auto* rootFrame = new QFrame(this);
     rootFrame->setObjectName(QStringLiteral("RootCard"));
     auto* rootLayout = new QVBoxLayout(rootFrame);
-    rootLayout->setContentsMargins(6, 6, 6, 6);
+    rootLayout->setContentsMargins(4, 4, 4, 4);
     rootLayout->addLayout(root);
     auto* outer = new QVBoxLayout(this);
     outer->setContentsMargins(0, 0, 0, 0);
@@ -1218,7 +1218,7 @@ void QtClientWindow::ApplyTheme()
             background: transparent;
             border: none;
             padding: 4px;
-            min-width: 150px;
+            min-width: 130px;
         }
         QFrame#ChatPanel, QFrame#SettingsPanel {
             background: transparent;
@@ -1243,8 +1243,8 @@ void QtClientWindow::ApplyTheme()
         QFrame#ListPanel { background: transparent; border: none; }
         QFrame#RootCard {
             background: %1;
-            border-radius: 12px;
-            border: 1px solid %4;
+            border-radius: 10px;
+            border: 0px solid %4;
         }
         QLineEdit, QPlainTextEdit, QComboBox, QSpinBox {
             background: %3;
