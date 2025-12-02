@@ -21,11 +21,11 @@ jobs:
         run: |
           $ErrorActionPreference = "Stop"
           if ("${{ matrix.build_target }}" -eq "server") {
-            cmake -S core -B build -G "Ninja" -DBUILD_SERVER=ON -DBUILD_CLIENT_WINDOWS=OFF -DBUILD_SHARED_TESTS=ON -DCMAKE_BUILD_TYPE=Release
+            cmake -S . -B build -G "Ninja" -DBUILD_SERVER=ON -DBUILD_CLIENT_WINDOWS=OFF -DBUILD_SHARED_TESTS=ON -DCMAKE_BUILD_TYPE=Release
           } elseif ("${{ matrix.build_target }}" -eq "client") {
-            cmake -S core -B build -G "Ninja" -DBUILD_SERVER=OFF -DBUILD_CLIENT_WINDOWS=ON -DBUILD_SHARED_TESTS=ON -DCMAKE_BUILD_TYPE=Release
+            cmake -S . -B build -G "Ninja" -DBUILD_SERVER=OFF -DBUILD_CLIENT_WINDOWS=ON -DBUILD_SHARED_TESTS=ON -DCMAKE_BUILD_TYPE=Release
           } else {
-            cmake -S core -B build -G "Ninja" -DBUILD_SERVER=ON -DBUILD_CLIENT_WINDOWS=ON -DBUILD_SHARED_TESTS=ON -DCMAKE_BUILD_TYPE=Release
+            cmake -S . -B build -G "Ninja" -DBUILD_SERVER=ON -DBUILD_CLIENT_WINDOWS=ON -DBUILD_SHARED_TESTS=ON -DCMAKE_BUILD_TYPE=Release
           }
       - name: Build
         run: cmake --build build --config Release
@@ -33,12 +33,12 @@ jobs:
         run: ctest --test-dir build --output-on-failure -C Release
       - name: Generate self-signed certs
         if: matrix.build_target == 'all'
-        run: pwsh -File core/scripts/gen_certs.ps1 -OutputDir core/dist/certs -Password changeit
+        run: pwsh -File scripts/gen_certs.ps1 -OutputDir dist/certs -Password changeit
       - name: Package Windows deliverables
         if: matrix.build_target == 'all'
         run: |
-          pwsh -File core/scripts/package_win.ps1 -BuildDir build/client/windows -OutputDir dist/win
-          pwsh -File core/scripts/package_artifacts.ps1 -BuildServer build/server -BuildClientWin build/client/windows -Output dist/artifacts.zip -CertPath core/dist/certs -CertPassword changeit
+          pwsh -File scripts/package_win.ps1 -BuildDir build/client/windows -OutputDir dist/win
+          pwsh -File scripts/package_artifacts.ps1 -BuildServer build/server -BuildClientWin build/client/windows -Output dist/artifacts.zip -CertPath dist/certs -CertPassword changeit
       - name: Upload Release Bundle
         if: matrix.build_target == 'all'
         uses: actions/upload-artifact@v4
@@ -91,7 +91,7 @@ jobs:
             mingw-w64-x86_64-gcovr
       - name: Configure (coverage)
         run: |
-          cmake -S core -B build-coverage -G "Ninja" \
+          cmake -S . -B build-coverage -G "Ninja" \
             -DBUILD_SERVER=ON -DBUILD_CLIENT_WINDOWS=ON -DBUILD_SHARED_TESTS=ON \
             -DCMAKE_BUILD_TYPE=Debug \
             -DCMAKE_C_FLAGS="--coverage" -DCMAKE_CXX_FLAGS="--coverage"
@@ -123,7 +123,7 @@ jobs:
             ~/.gradle/wrapper
           key: gradle-${{ runner.os }}-${{ hashFiles('core/client/android/**') }}
       - name: Build Android placeholder
-        working-directory: core/client/android
+        working-directory: client/android
         run: |
           chmod +x gradlew || true
           ./gradlew assembleDebug || true
