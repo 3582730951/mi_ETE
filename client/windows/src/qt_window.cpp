@@ -1262,14 +1262,14 @@ void QtClientWindow::ApplyTheme()
             font-weight: 700;
             color: #38bdf8;
         }
-        QLabel#SessionName { font-weight: 600; }
-        QLabel#SessionMeta { color: #94a3b8; font-size: 11px; }
+        QLabel#SessionName { font-weight: 700; font-size: 14px; }
+        QLabel#SessionMeta { color: #94a3b8; font-size: 12px; }
         QLabel#UnreadBadge {
             background: #ef4444;
             color: #ffffff;
-            border-radius: 10px;
-            padding: 2px 6px;
-            min-height: 20px;
+            border-radius: 12px;
+            padding: 2px 8px;
+            min-height: 22px;
         }
         QFrame#BubbleOutbound {
             background: %5;
@@ -1774,7 +1774,7 @@ void QtClientWindow::UpdateSessionPresence(const QString& peer)
     auto it = sessionItems_.find(peer);
     if (it == sessionItems_.end())
     {
-        QListWidgetItem* item = new QListWidgetItem(QStringLiteral("会话 %1").arg(peer), feedList_);
+        QListWidgetItem* item = new QListWidgetItem(QStringLiteral("%1").arg(peer), feedList_);
         item->setForeground(QColor("#38bdf8"));
         item->setData(Qt::UserRole + 1, peer);
         sessionItems_[peer] = item;
@@ -1850,7 +1850,7 @@ void QtClientWindow::TogglePinSession(const QString& peer, bool pinned)
     auto nameIt = sessionNameLabels_.find(peer);
     if (nameIt != sessionNameLabels_.end() && nameIt->second)
     {
-        QString base = peer == QStringLiteral("self") ? QStringLiteral("自己") : QStringLiteral("会话 %1").arg(peer);
+        QString base = peer == QStringLiteral("self") ? QStringLiteral("自己") : QStringLiteral("%1").arg(peer);
         if (pinned)
         {
             base.prepend(QStringLiteral("★ "));
@@ -2413,7 +2413,7 @@ void QtClientWindow::ApplySessionList(const std::vector<std::pair<std::uint32_t,
         obj.insert(QStringLiteral("muted"), sessionMuted_[peer]);
         arr.append(obj);
         lastSeen_[peer] = QDateTime::currentDateTime();
-        auto* listItem = new QListWidgetItem(QStringLiteral("会话 %1").arg(peer), feedList_);
+        auto* listItem = new QListWidgetItem(QStringLiteral("%1").arg(peer), feedList_);
         listItem->setData(Qt::UserRole + 1, peer);
         feedList_->addItem(listItem);
         sessionItems_[peer] = listItem;
@@ -3645,7 +3645,7 @@ void QtClientWindow::BootstrapSessionList()
         sessionItems_.find(QString::number(targetSpin_->value())) == sessionItems_.end())
     {
         const QString peerId = QString::number(targetSpin_->value());
-        auto* peer = new QListWidgetItem(QStringLiteral("会话 %1 · 待激活").arg(peerId), feedList_);
+        auto* peer = new QListWidgetItem(QStringLiteral("%1 · 待激活").arg(peerId), feedList_);
         peer->setForeground(QColor("#94a3b8"));
         peer->setData(Qt::UserRole, 0);
         sessionItems_[peerId] = peer;
@@ -3749,7 +3749,7 @@ void QtClientWindow::ApplySessionWidget(const QString& peer, QListWidgetItem* it
     auto* avatar = new QLabel(w);
     avatar->setObjectName(QStringLiteral("Avatar"));
     avatar->setAlignment(Qt::AlignCenter);
-    avatar->setFixedSize(36, 36);
+    avatar->setFixedSize(40, 40);
     const bool isGroup = [&]() {
         auto it = sessionIsGroup_.find(peer);
         return it != sessionIsGroup_.end() ? it->second : false;
@@ -3757,7 +3757,7 @@ void QtClientWindow::ApplySessionWidget(const QString& peer, QListWidgetItem* it
     QString avatarText = peer == QStringLiteral("self") ? QStringLiteral("我") : (isGroup ? QStringLiteral("群") : peer.right(2));
     avatar->setText(avatarText);
 
-    QString nameText = peer == QStringLiteral("self") ? QStringLiteral("自己") : QStringLiteral("会话 %1").arg(peer);
+    QString nameText = peer == QStringLiteral("self") ? QStringLiteral("自己") : QStringLiteral("%1").arg(peer);
     if ([&]() {
             auto it = sessionPinned_.find(peer);
             return it != sessionPinned_.end() ? it->second : false;
@@ -3786,7 +3786,8 @@ void QtClientWindow::ApplySessionWidget(const QString& peer, QListWidgetItem* it
     auto* badge = new QLabel(w);
     badge->setObjectName(QStringLiteral("UnreadBadge"));
     badge->setAlignment(Qt::AlignCenter);
-    badge->setMinimumWidth(22);
+    badge->setMinimumWidth(26);
+    badge->setMinimumHeight(22);
     badge->setVisible(false);
 
     row->addWidget(avatar);
