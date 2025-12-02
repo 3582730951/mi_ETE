@@ -7,6 +7,11 @@
 #include <fstream>
 #include <sstream>
 
+#ifdef _WIN32
+#define WIN32_LEAN_AND_MEAN
+#include <Windows.h>
+#endif
+
 namespace
 {
 constexpr std::uint8_t kAuthRequestType = 0x01;
@@ -81,12 +86,43 @@ std::vector<std::uint8_t> HexToBytes(const std::wstring& hex)
 
 std::wstring Utf8ToWide(const std::string& text)
 {
+    if (text.empty())
+    {
+        return {};
+    }
+#ifdef _WIN32
+    const int size = ::MultiByteToWideChar(CP_UTF8, 0, text.c_str(), static_cast<int>(text.size()), nullptr, 0);
+    if (size <= 0)
+    {
+        return {};
+    }
+    std::wstring out(static_cast<std::size_t>(size), L'\0');
+    ::MultiByteToWideChar(CP_UTF8, 0, text.c_str(), static_cast<int>(text.size()), out.data(), size);
+    return out;
+#else
     return std::wstring(text.begin(), text.end());
+#endif
 }
 
 std::string WideToUtf8(const std::wstring& text)
 {
+    if (text.empty())
+    {
+        return {};
+    }
+#ifdef _WIN32
+    const int size =
+        ::WideCharToMultiByte(CP_UTF8, 0, text.c_str(), static_cast<int>(text.size()), nullptr, 0, nullptr, nullptr);
+    if (size <= 0)
+    {
+        return {};
+    }
+    std::string out(static_cast<std::size_t>(size), '\0');
+    ::WideCharToMultiByte(CP_UTF8, 0, text.c_str(), static_cast<int>(text.size()), out.data(), size, nullptr, nullptr);
+    return out;
+#else
     return std::string(text.begin(), text.end());
+#endif
 }
 
 std::uint32_t ReadLe32(const std::vector<std::uint8_t>& buffer, std::size_t offset = 0)
