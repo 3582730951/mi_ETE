@@ -998,7 +998,8 @@ void QtClientWindow::BuildUi()
     auto root = new QHBoxLayout(this);
     root->addWidget(mainStack_);
     setLayout(root);
-    // 默认窗口尺寸由当前页面控制
+    // 默认进入登录页，锁定为登录尺寸
+    setFixedSize(QSize(320, 448));
 
     sendShortcutEnter_ = new QShortcut(QKeySequence(Qt::Key_Return), this);
     connect(sendShortcutEnter_, &QShortcut::activated, this, [this]() {
@@ -1188,18 +1189,16 @@ void QtClientWindow::ApplyTheme()
         }
         QPushButton#HeaderAction:hover { border-color: %5; color: %5; }
         QFrame#Sidebar {
-            background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
-                                        stop:0 %6, stop:1 %7);
-            border: 1px solid %4;
-            border-radius: 14px;
-            padding: 14px;
+            background: transparent;
+            border: none;
+            padding: 6px;
             min-width: 220px;
         }
         QFrame#ChatPanel, QFrame#SettingsPanel {
             background: %3;
-            border: 1px solid %4;
-            border-radius: 14px;
-            padding: 10px;
+            border: none;
+            border-radius: 10px;
+            padding: 6px;
         }
         QLabel#SidebarTitle { font-size: 18px; font-weight: 700; color: #38bdf8; }
         QLabel#Headline { font-size: 20px; font-weight: 700; color: #cbd5e1; }
@@ -1216,7 +1215,7 @@ void QtClientWindow::ApplyTheme()
         QListWidget { background: %3; border: 1px solid %4; border-radius: 8px; color: %2; }
         QListWidget::item { padding: 6px; }
         QListWidget::item:selected { background: %5; color: #ffffff; }
-        QFrame#ListPanel { background: transparent; }
+        QFrame#ListPanel { background: transparent; border: none; }
         QLineEdit, QPlainTextEdit, QComboBox, QSpinBox {
             background: %3;
             color: %2;
@@ -2668,9 +2667,7 @@ void QtClientWindow::ShowLoginPage()
     {
         mainStack_->setCurrentWidget(loginPage_);
     }
-    setMinimumSize(QSize(320, 448));
-    setMaximumSize(QSize(320, 448));
-    resize(QSize(320, 448));
+    setFixedSize(QSize(320, 448));
 }
 
 void QtClientWindow::ApplyLogin()
@@ -2702,9 +2699,7 @@ void QtClientWindow::ShowListPage()
 {
     currentPeer_.clear();
     currentPeerIsGroup_ = false;
-    setMinimumSize(QSize(372, 652));
-    setMaximumSize(QSize(372, 652));
-    resize(QSize(372, 652));
+    setFixedSize(QSize(372, 652));
     if (sessionLabel_)
     {
         sessionLabel_->setText(QStringLiteral("选择会话"));
@@ -2763,9 +2758,7 @@ void QtClientWindow::ShowChatPage(const QString& peer, bool isGroup)
 {
     currentPeer_ = peer;
     currentPeerIsGroup_ = isGroup;
-    setMinimumSize(QSize(720, 800));
-    setMaximumSize(QSize(720, 800));
-    resize(QSize(720, 800));
+    setFixedSize(QSize(720, 800));
     if (emptyStateLabel_)
     {
         emptyStateLabel_->setVisible(false);
