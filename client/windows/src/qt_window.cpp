@@ -158,6 +158,7 @@ QtClientWindow::QtClientWindow(QWidget* parent)
       screenShareButton_(nullptr),
       fileActionButton_(nullptr),
       moreActionButton_(nullptr),
+      headerActionsLayout_(nullptr),
       navGroup_(nullptr),
       mediaProgress_(nullptr),
       mediaStatusLabel_(nullptr),
@@ -477,6 +478,7 @@ void QtClientWindow::BuildUi()
     snapshotRow->addWidget(importSessions);
     snapshotRow->addStretch();
     sideLayout->addLayout(snapshotRow);
+    feedList_->setMinimumHeight(420);
     sideLayout->addWidget(feedList_, 1);
     sidebarRow->addWidget(listPanel, 1);
     auto openPeer = [this](QListWidgetItem* item) {
@@ -688,8 +690,8 @@ void QtClientWindow::BuildUi()
     headerRow->addSpacing(6);
     headerRow->addSpacing(6);
     headerRow->addSpacing(6);
-    auto* headerActions = new QHBoxLayout();
-    headerActions->setSpacing(6);
+    headerActionsLayout_ = new QHBoxLayout();
+    headerActionsLayout_->setSpacing(6);
     callButton_ = new QPushButton(QStringLiteral("📞"), this);
     callButton_->setObjectName(QStringLiteral("HeaderAction"));
     videoButton_ = new QPushButton(QStringLiteral("🎥"), this);
@@ -700,12 +702,12 @@ void QtClientWindow::BuildUi()
     fileActionButton_->setObjectName(QStringLiteral("HeaderAction"));
     moreActionButton_ = new QPushButton(QStringLiteral("⋯"), this);
     moreActionButton_->setObjectName(QStringLiteral("HeaderAction"));
-    headerActions->addWidget(callButton_);
-    headerActions->addWidget(videoButton_);
-    headerActions->addWidget(screenShareButton_);
-    headerActions->addWidget(fileActionButton_);
-    headerActions->addWidget(moreActionButton_);
-    headerRow->addLayout(headerActions);
+    headerActionsLayout_->addWidget(callButton_);
+    headerActionsLayout_->addWidget(videoButton_);
+    headerActionsLayout_->addWidget(screenShareButton_);
+    headerActionsLayout_->addWidget(fileActionButton_);
+    headerActionsLayout_->addWidget(moreActionButton_);
+    headerRow->addLayout(headerActionsLayout_);
     headerRow->addSpacing(6);
     headerRow->addSpacing(6);
     formLayout->addLayout(headerRow);
@@ -996,7 +998,7 @@ void QtClientWindow::BuildUi()
     auto root = new QHBoxLayout(this);
     root->addWidget(mainStack_);
     setLayout(root);
-    setFixedSize(QSize(320, 448));
+    // 默认窗口尺寸由当前页面控制
 
     sendShortcutEnter_ = new QShortcut(QKeySequence(Qt::Key_Return), this);
     connect(sendShortcutEnter_, &QShortcut::activated, this, [this]() {
@@ -2666,7 +2668,9 @@ void QtClientWindow::ShowLoginPage()
     {
         mainStack_->setCurrentWidget(loginPage_);
     }
-    setFixedSize(QSize(320, 448));
+    setMinimumSize(QSize(320, 448));
+    setMaximumSize(QSize(320, 448));
+    resize(QSize(320, 448));
 }
 
 void QtClientWindow::ApplyLogin()
@@ -2698,7 +2702,9 @@ void QtClientWindow::ShowListPage()
 {
     currentPeer_.clear();
     currentPeerIsGroup_ = false;
-    setFixedSize(QSize(720, 800));
+    setMinimumSize(QSize(372, 652));
+    setMaximumSize(QSize(372, 652));
+    resize(QSize(372, 652));
     if (sessionLabel_)
     {
         sessionLabel_->setText(QStringLiteral("选择会话"));
@@ -2710,6 +2716,18 @@ void QtClientWindow::ShowListPage()
     if (groupInfoPanel_)
     {
         groupInfoPanel_->setVisible(false);
+    }
+    if (headerActionsLayout_ && headerActionsLayout_->parentWidget())
+    {
+        headerActionsLayout_->parentWidget()->setVisible(false);
+    }
+    if (callButton_)
+    {
+        callButton_->setVisible(false);
+        videoButton_->setVisible(false);
+        screenShareButton_->setVisible(false);
+        fileActionButton_->setVisible(false);
+        moreActionButton_->setVisible(false);
     }
     if (emptyStateLabel_)
     {
@@ -2745,7 +2763,9 @@ void QtClientWindow::ShowChatPage(const QString& peer, bool isGroup)
 {
     currentPeer_ = peer;
     currentPeerIsGroup_ = isGroup;
-    setFixedSize(QSize(720, 800));
+    setMinimumSize(QSize(720, 800));
+    setMaximumSize(QSize(720, 800));
+    resize(QSize(720, 800));
     if (emptyStateLabel_)
     {
         emptyStateLabel_->setVisible(false);
@@ -2778,6 +2798,18 @@ void QtClientWindow::ShowChatPage(const QString& peer, bool isGroup)
     {
         groupInfoPanel_->setVisible(isGroup);
     }
+    if (headerActionsLayout_ && headerActionsLayout_->parentWidget())
+    {
+        headerActionsLayout_->parentWidget()->setVisible(true);
+    }
+    if (callButton_)
+    {
+        callButton_->setVisible(true);
+        videoButton_->setVisible(true);
+        screenShareButton_->setVisible(true);
+        fileActionButton_->setVisible(true);
+        moreActionButton_->setVisible(true);
+    }
     if (isGroup && groupMembers_)
     {
         groupMembers_->clear();
@@ -2792,7 +2824,7 @@ void QtClientWindow::ShowChatPage(const QString& peer, bool isGroup)
     if (hSplit_)
     {
         const int right = (isGroup && !settingsCollapsed_) ? (lastSettingsWidth_ > 0 ? lastSettingsWidth_ : 160) : 0;
-        const int chatWidth = isGroup ? 420 : 460;
+        const int chatWidth = isGroup ? 420 : 440;
         hSplit_->setSizes(QList<int>({260, chatWidth, right}));
     }
 }
@@ -3762,7 +3794,7 @@ void QtClientWindow::ApplySessionWidget(const QString& peer, QListWidgetItem* it
     row->addStretch();
     row->addWidget(badge);
 
-    item->setSizeHint(QSize(item->sizeHint().width(), 54));
+    item->setSizeHint(QSize(item->sizeHint().width(), 68));
     feedList_->setItemWidget(item, w);
     sessionBadgeLabels_[peer] = badge;
     sessionNameLabels_[peer] = name;

@@ -153,6 +153,7 @@ private:
     QPushButton* screenShareButton_;
     QPushButton* fileActionButton_;
     QPushButton* moreActionButton_;
+    QHBoxLayout* headerActionsLayout_;
     QButtonGroup* navGroup_;
     QProgressBar* mediaProgress_;
     QLabel* mediaStatusLabel_;
