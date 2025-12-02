@@ -2255,16 +2255,7 @@ void QtClientWindow::LoadSettings()
 
 QString QtClientWindow::ToHtml(const QString& text) const
 {
-    QString normalized = MarkdownToHtml(text);
-    QString escaped = normalized.toHtmlEscaped();
-    // restore basic tags after escaping
-    escaped.replace(QStringLiteral("&lt;b&gt;"), QStringLiteral("<b>"))
-        .replace(QStringLiteral("&lt;/b&gt;"), QStringLiteral("</b>"))
-        .replace(QStringLiteral("&lt;i&gt;"), QStringLiteral("<i>"))
-        .replace(QStringLiteral("&lt;/i&gt;"), QStringLiteral("</i>"))
-        .replace(QStringLiteral("&lt;code&gt;"), QStringLiteral("<code>"))
-        .replace(QStringLiteral("&lt;/code&gt;"), QStringLiteral("</code>"));
-
+    QString escaped = text.toHtmlEscaped();
     static const QRegularExpression urlRegex(QStringLiteral(R"((https?://[^\s<>]+))"));
     escaped.replace(urlRegex, QStringLiteral(R"(<a href="%1">%1</a>)").arg(QStringLiteral("\\1")));
     escaped.replace(QStringLiteral("\n"), QStringLiteral("<br/>"));
@@ -2273,23 +2264,7 @@ QString QtClientWindow::ToHtml(const QString& text) const
 
 QString QtClientWindow::MarkdownToHtml(const QString& text) const
 {
-    QString out = text;
-    out.replace(QRegularExpression(QStringLiteral(R"(\*\*(.+?)\*\*)")), QStringLiteral("<b>\\1</b>"));
-    out.replace(QRegularExpression(QStringLiteral(R"(\*(.+?)\*))"), QStringLiteral("<i>\\1</i>"));
-    out.replace(QRegularExpression(QStringLiteral(R"(`(.+?)`)")), QStringLiteral("<code>\\1</code>"));
-    static const QMap<QString, QString> emojiMap = {
-        {":)", "😊"},
-        {":(", "☹️"},
-        {":D", "😃"},
-        {";)", "😉"},
-        {":heart:", "❤️"},
-        {":fire:", "🔥"},
-    };
-    for (auto it = emojiMap.constBegin(); it != emojiMap.constEnd(); ++it)
-    {
-        out.replace(it.key(), it.value());
-    }
-    return out;
+    return text;
 }
 
 void QtClientWindow::closeEvent(QCloseEvent* event)

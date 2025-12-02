@@ -127,7 +127,7 @@ jobs:
         run: ctest --test-dir build-coverage --output-on-failure -C Debug --timeout 300 -E mi_shared_tcp_tunnel
       - name: Generate coverage report
         run: |
-          gcovr -r core --filter core -j 2 --xml -o build-coverage/coverage.xml --html-details build-coverage/coverage.html
+          gcovr -r . --filter core -j 2 --xml -o build-coverage/coverage.xml --html-details build-coverage/coverage.html
       - name: Upload Coverage
         uses: actions/upload-artifact@v4
         with:
