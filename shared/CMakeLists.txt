@@ -18,11 +18,14 @@ target_include_directories(mi_shared
     ${CMAKE_CURRENT_SOURCE_DIR}/third_party
 )
 
-find_package(OpenSSL QUIET)
-if(OPENSSL_FOUND)
-  target_include_directories(mi_shared PUBLIC ${OPENSSL_INCLUDE_DIR})
-  target_compile_definitions(mi_shared PUBLIC MI_HAS_OPENSSL)
-  target_link_libraries(mi_shared PRIVATE OpenSSL::SSL OpenSSL::Crypto)
+# Windows/MSVC 使用 CNG，避免链接未知 OpenSSL 安装；其他平台若存在则启用
+if(NOT MSVC)
+  find_package(OpenSSL QUIET)
+  if(OPENSSL_FOUND)
+    target_include_directories(mi_shared PUBLIC ${OPENSSL_INCLUDE_DIR})
+    target_compile_definitions(mi_shared PUBLIC MI_HAS_OPENSSL)
+    target_link_libraries(mi_shared PRIVATE OpenSSL::SSL OpenSSL::Crypto)
+  endif()
 endif()
 
 target_compile_definitions(mi_shared
