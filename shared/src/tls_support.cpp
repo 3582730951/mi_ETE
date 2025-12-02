@@ -678,7 +678,7 @@ bool DecryptWithPrivateKey(const std::vector<std::uint8_t>& pfxBytes,
     }
     else
     {
-        HCRYPTKEY legacyKey = reinterpret_cast<HCRYPTKEY>(key);
+        HCRYPTKEY legacyKey = static_cast<HCRYPTKEY>(key);
         std::vector<std::uint8_t> tmp(cipher.begin(), cipher.end());
         DWORD dataLen = static_cast<DWORD>(tmp.size());
         if (::CryptDecrypt(legacyKey, 0, TRUE, CRYPT_OAEP, tmp.data(), &dataLen))
@@ -697,7 +697,7 @@ bool DecryptWithPrivateKey(const std::vector<std::uint8_t>& pfxBytes,
         }
         else
         {
-            ::CryptReleaseContext(reinterpret_cast<HCRYPTPROV>(key), 0);
+            ::CryptReleaseContext(static_cast<HCRYPTPROV>(key), 0);
         }
     }
     ::CertFreeCertificateContext(ctx);
