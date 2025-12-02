@@ -46,7 +46,6 @@ jobs:
         run: ctest --test-dir build --output-on-failure -C Release
       - name: Generate self-signed certs
         if: matrix.build_target == 'all'
-        working-directory: core
         run: |
           pwsh -Command "New-Item -ItemType Directory -Force -Path dist/certs | Out-Null"
           pwsh -File scripts/gen_certs.ps1 -OutputDir dist/certs -Password changeit
@@ -60,7 +59,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: mi-bundle-windows
-          path: core/dist/artifacts.zip
+          path: dist/artifacts.zip
       - name: Upload Artifacts (binaries)
         uses: actions/upload-artifact@v4
         with:
@@ -85,7 +84,7 @@ jobs:
           path: |
             build/_deps
             build/vcpkg_installed
-          key: cmake-cache-${{ runner.os }}-${{ matrix.build_target }}-${{ hashFiles('core/**/CMakeLists.txt') }}
+          key: cmake-cache-${{ runner.os }}-${{ matrix.build_target }}-${{ hashFiles('**/CMakeLists.txt') }}
           restore-keys: |
             cmake-cache-${{ runner.os }}-${{ matrix.build_target }}-
 
@@ -95,7 +94,6 @@ jobs:
     defaults:
       run:
         shell: msys2 {0}
-        working-directory: core
     steps:
       - uses: actions/checkout@v4
         with:
@@ -113,8 +111,10 @@ jobs:
             mingw-w64-x86_64-python-lxml
             mingw-w64-x86_64-libxml2
             mingw-w64-x86_64-libxslt
-            mingw-w64-x86_64-python-gcovr
-            mingw-w64-x86_64-python-colorlog
+      - name: Install Python tools (coverage)
+        run: |
+          python -m pip install --no-cache-dir --break-system-packages --upgrade pip
+          python -m pip install --no-cache-dir --break-system-packages gcovr colorlog
       - name: Configure (coverage)
         run: |
           cmake -S . -B build-coverage -G "Ninja" \
@@ -126,7 +126,6 @@ jobs:
       - name: Test (coverage)
         run: ctest --test-dir build-coverage --output-on-failure -C Debug --timeout 300 -E mi_shared_tcp_tunnel
       - name: Generate coverage report
-        working-directory: core
         run: |
           gcovr -r . --filter . -j 2 --xml -o build-coverage/coverage.xml --html-details build-coverage/coverage.html
       - name: Upload Coverage
@@ -150,7 +149,7 @@ jobs:
           path: |
             ~/.gradle/caches
             ~/.gradle/wrapper
-          key: gradle-${{ runner.os }}-${{ hashFiles('core/client/android/**') }}
+          key: gradle-${{ runner.os }}-${{ hashFiles('client/android/**') }}
       - name: Build Android placeholder
         working-directory: client/android
         run: |
@@ -165,6 +164,6 @@ jobs:
         with:
           name: mi-android-placeholder
           path: |
-            core/client/android/app/build/outputs/apk/debug/app-debug.apk
-            core/client/android/README.md
+            client/android/app/build/outputs/apk/debug/app-debug.apk
+            client/android/README.md
           if-no-files-found: ignore
