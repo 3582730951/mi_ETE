@@ -49,8 +49,10 @@
 #include <QNetworkAccessManager>
 #include <QNetworkReply>
 #include <QNetworkRequest>
+#if QT_VERSION < QT_VERSION_CHECK(6, 0, 0)
 #include <QNetworkConfigurationManager>
 #include <QNetworkSession>
+#endif
 #include <QUrl>
 #include <QSpinBox>
 #include <QSplitter>
@@ -220,6 +222,7 @@ QtClientWindow::QtClientWindow(QWidget* parent)
     readTimer_.start(2000);
     ackTimer_.start(3000);
     sessionRefreshTimer_.start(30'000);
+#if QT_VERSION < QT_VERSION_CHECK(6, 0, 0)
     if (networkManager_)
     {
         auto* mgr = new QNetworkConfigurationManager(this);
@@ -241,6 +244,7 @@ QtClientWindow::QtClientWindow(QWidget* parent)
             }
         });
     }
+#endif
     LoadDraft();
     BootstrapSessionList();
     FetchCertMemory();

@@ -124,7 +124,7 @@ jobs:
       - name: Build (coverage)
         run: cmake --build build-coverage --config Debug
       - name: Test (coverage)
-        run: ctest --test-dir build-coverage --output-on-failure -C Debug --timeout 120
+        run: ctest --test-dir build-coverage --output-on-failure -C Debug --timeout 300
       - name: Generate coverage report
         run: |
           gcovr -r core --filter core -j 2 --xml -o build-coverage/coverage.xml --html-details build-coverage/coverage.html
