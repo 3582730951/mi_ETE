@@ -173,7 +173,6 @@ QtClientWindow::QtClientWindow(QWidget* parent)
       mainStack_(nullptr),
       loginPage_(nullptr),
       mainPage_(nullptr),
-      listPage_(nullptr),
       loginServerLabel_(nullptr),
       loginUserEdit_(nullptr),
       loginPassEdit_(nullptr),
@@ -185,6 +184,8 @@ QtClientWindow::QtClientWindow(QWidget* parent)
       navRail_(nullptr),
       mainPanel_(nullptr),
       groupInfoPanel_(nullptr),
+      composerPanel_(nullptr),
+      emptyStateLabel_(nullptr),
       groupAnnouncement_(nullptr),
       groupMembers_(nullptr),
       settingsPanel_(nullptr),
@@ -355,37 +356,57 @@ void QtClientWindow::BuildUi()
 
     sidebar_ = new QFrame(this);
     sidebar_->setObjectName(QStringLiteral("Sidebar"));
-    auto sideLayout = new QVBoxLayout(sidebar_);
-    sideLayout->setContentsMargins(12, 12, 12, 12);
+    auto* sidebarRow = new QHBoxLayout(sidebar_);
+    sidebarRow->setContentsMargins(8, 8, 8, 8);
+    sidebarRow->setSpacing(10);
+    sidebarRow->addWidget(navRail_);
+
+    auto* listPanel = new QFrame(sidebar_);
+    listPanel->setObjectName(QStringLiteral("ListPanel"));
+    auto* sideLayout = new QVBoxLayout(listPanel);
+    sideLayout->setContentsMargins(10, 6, 10, 6);
     sideLayout->setSpacing(8);
+    auto* titleRow = new QHBoxLayout();
+    titleRow->setContentsMargins(0, 0, 0, 0);
+    titleRow->setSpacing(6);
     auto title = new QLabel(QStringLiteral("Mi 聊天"));
     title->setObjectName(QStringLiteral("SidebarTitle"));
     statusLabel_ = new QLabel(QStringLiteral("状态：空闲"));
-    auto accountCard = new QFrame(this);
+    statusLabel_->setObjectName(QStringLiteral("StatusPill"));
+    titleRow->addWidget(title);
+    titleRow->addStretch();
+    titleRow->addWidget(statusLabel_);
+    sideLayout->addLayout(titleRow);
+
+    auto* accountCard = new QFrame(listPanel);
     accountCard->setObjectName(QStringLiteral("AccountCard"));
-    auto* accountLayout = new QVBoxLayout(accountCard);
-    accountLayout->setContentsMargins(8, 8, 8, 8);
-    accountLayout->setSpacing(4);
-    auto* accountRow = new QHBoxLayout();
-    auto* avatar = new QLabel(QStringLiteral("U"));
+    auto* accountLayout = new QHBoxLayout(accountCard);
+    accountLayout->setContentsMargins(10, 8, 10, 8);
+    accountLayout->setSpacing(8);
+    auto* avatar = new QLabel(QStringLiteral("U"), accountCard);
     avatar->setObjectName(QStringLiteral("Avatar"));
-    accountNameLabel_ = new QLabel(QStringLiteral("未登录"));
-    accountServerLabel_ = new QLabel(defaultServer);
-    accountRow->addWidget(avatar);
-    accountRow->addSpacing(6);
-    accountRow->addWidget(accountNameLabel_, 1);
-    accountLayout->addLayout(accountRow);
-    accountLayout->addWidget(accountServerLabel_);
-    switchAccountButton_ = new QPushButton(QStringLiteral("切换账号"), this);
-    switchAccountButton_->setObjectName(QStringLiteral("SidebarToggle"));
-    switchAccountButton_->setFixedWidth(90);
-    connect(switchAccountButton_, &QPushButton::clicked, this, &QtClientWindow::ShowLoginPage);
-    accountLayout->addWidget(switchAccountButton_);
+    avatar->setFixedSize(36, 36);
+    accountNameLabel_ = new QLabel(QStringLiteral("未登录"), accountCard);
+    accountServerLabel_ = new QLabel(defaultServer, accountCard);
+    auto* accountInfo = new QVBoxLayout();
+    accountInfo->setContentsMargins(0, 0, 0, 0);
+    accountInfo->setSpacing(2);
+    accountInfo->addWidget(accountNameLabel_);
+    accountInfo->addWidget(accountServerLabel_);
+    QPushButton* sidebarSwitch = new QPushButton(QStringLiteral("切换"), accountCard);
+    sidebarSwitch->setObjectName(QStringLiteral("GhostButton"));
+    sidebarSwitch->setFixedWidth(60);
+    connect(sidebarSwitch, &QPushButton::clicked, this, &QtClientWindow::ShowLoginPage);
+    accountLayout->addWidget(avatar);
+    accountLayout->addLayout(accountInfo, 1);
+    accountLayout->addWidget(sidebarSwitch);
+    sideLayout->addWidget(accountCard);
+
     auto connectionsLabel = new QLabel(QStringLiteral("会话列表"));
-    sessionSearch_ = new QLineEdit(this);
+    sessionSearch_ = new QLineEdit(listPanel);
     sessionSearch_->setPlaceholderText(QStringLiteral("搜索会话 / Session"));
     sessionSearch_->setClearButtonEnabled(true);
-    feedList_ = new QListWidget(this);
+    feedList_ = new QListWidget(listPanel);
     feedList_->setContextMenuPolicy(Qt::CustomContextMenu);
     connect(feedList_, &QListWidget::customContextMenuRequested, this, [this](const QPoint& pos) {
         QListWidgetItem* item = feedList_->itemAt(pos);
@@ -427,33 +448,37 @@ void QtClientWindow::BuildUi()
             SaveSettings();
         }
     });
-    refreshSessions_ = new QPushButton(QStringLiteral("拉取会话"), this);
+    refreshSessions_ = new QPushButton(QStringLiteral("刷新"), listPanel);
+    refreshSessions_->setObjectName(QStringLiteral("HeaderAction"));
     connect(refreshSessions_, &QPushButton::clicked, this, [this]() {
         FetchRemoteSessions();
         SaveSettings();
     });
-    QPushButton* exportSessions = new QPushButton(QStringLiteral("导出会话"), this);
-    connect(exportSessions, &QPushButton::clicked, this, [this]() { ExportSessionSnapshot(); });
-    QPushButton* importSessions = new QPushButton(QStringLiteral("导入会话"), this);
-    connect(importSessions, &QPushButton::clicked, this, [this]() { ImportSessionSnapshot(); });
-
-    sideLayout->addWidget(title);
-    sideLayout->addWidget(statusLabel_);
-    sideLayout->addWidget(accountCard);
-    sideLayout->addSpacing(6);
-    sideLayout->addWidget(connectionsLabel);
-    QPushButton* markAllRead = new QPushButton(QStringLiteral("全部已读"), this);
+    QPushButton* markAllRead = new QPushButton(QStringLiteral("已读"), listPanel);
+    markAllRead->setObjectName(QStringLiteral("HeaderAction"));
     connect(markAllRead, &QPushButton::clicked, this, &QtClientWindow::MarkAllRead);
     auto* listActions = new QHBoxLayout();
     listActions->setSpacing(6);
     listActions->addWidget(refreshSessions_);
     listActions->addWidget(markAllRead);
+    listActions->addStretch();
     sideLayout->addLayout(listActions);
+
     sideLayout->addWidget(sessionSearch_);
-    sideLayout->addWidget(exportSessions);
-    sideLayout->addWidget(importSessions);
+    auto* snapshotRow = new QHBoxLayout();
+    snapshotRow->setSpacing(8);
+    QPushButton* exportSessions = new QPushButton(QStringLiteral("导出"), listPanel);
+    exportSessions->setObjectName(QStringLiteral("GhostButton"));
+    QPushButton* importSessions = new QPushButton(QStringLiteral("导入"), listPanel);
+    importSessions->setObjectName(QStringLiteral("GhostButton"));
+    connect(exportSessions, &QPushButton::clicked, this, [this]() { ExportSessionSnapshot(); });
+    connect(importSessions, &QPushButton::clicked, this, [this]() { ImportSessionSnapshot(); });
+    snapshotRow->addWidget(exportSessions);
+    snapshotRow->addWidget(importSessions);
+    snapshotRow->addStretch();
+    sideLayout->addLayout(snapshotRow);
     sideLayout->addWidget(feedList_, 1);
-    sideLayout->addStretch();
+    sidebarRow->addWidget(listPanel, 1);
     connect(feedList_, &QListWidget::itemDoubleClicked, this, [this](QListWidgetItem* item) {
         if (!item)
         {
@@ -507,14 +532,14 @@ void QtClientWindow::BuildUi()
     stopButton_ = new QPushButton(QStringLiteral("关闭"), this);
     stopButton_->setObjectName(QStringLiteral("StopButton"));
     browseButton_ = new QPushButton(QStringLiteral("选择媒体"), this);
-    emojiButton_ = new QPushButton(QStringLiteral("表情"), this);
-    emojiButton_->setFixedWidth(60);
+    emojiButton_ = new QPushButton(QStringLiteral("😊"), this);
+    emojiButton_->setFixedWidth(46);
     boldButton_ = new QPushButton(QStringLiteral("B"), this);
-    boldButton_->setFixedWidth(36);
+    boldButton_->setFixedWidth(32);
     italicButton_ = new QPushButton(QStringLiteral("I"), this);
-    italicButton_->setFixedWidth(36);
+    italicButton_->setFixedWidth(32);
     codeButton_ = new QPushButton(QStringLiteral("`"), this);
-    codeButton_->setFixedWidth(36);
+    codeButton_->setFixedWidth(32);
     mediaProgress_ = new QProgressBar(this);
     mediaProgress_->setRange(0, 100);
     mediaProgress_->setValue(0);
@@ -638,9 +663,9 @@ void QtClientWindow::BuildUi()
     mainPanel_->setObjectName(QStringLiteral("ChatPanel"));
     auto formLayout = new QVBoxLayout(mainPanel_);
     auto headerRow = new QHBoxLayout();
-    backButton_ = new QPushButton(QStringLiteral("← 返回"), this);
-    backButton_->setObjectName(QStringLiteral("SidebarToggle"));
-    backButton_->setFixedWidth(72);
+    backButton_ = new QPushButton(QStringLiteral("◀ 列表"), this);
+    backButton_->setObjectName(QStringLiteral("GhostButton"));
+    backButton_->setFixedWidth(70);
     connect(backButton_, &QPushButton::clicked, this, &QtClientWindow::ShowListPage);
     auto headline = new QLabel(QStringLiteral("对话"));
     headline->setObjectName(QStringLiteral("Headline"));
@@ -653,8 +678,8 @@ void QtClientWindow::BuildUi()
     headerRow->addWidget(accountLabel_);
     headerRow->addSpacing(6);
     switchAccountButton_ = new QPushButton(QStringLiteral("切换账号"), this);
-    switchAccountButton_->setObjectName(QStringLiteral("SidebarToggle"));
-    switchAccountButton_->setFixedWidth(90);
+    switchAccountButton_->setObjectName(QStringLiteral("GhostButton"));
+    switchAccountButton_->setFixedWidth(78);
     connect(switchAccountButton_, &QPushButton::clicked, this, &QtClientWindow::ShowLoginPage);
     headerRow->addWidget(switchAccountButton_);
     headerRow->addSpacing(6);
@@ -670,6 +695,7 @@ void QtClientWindow::BuildUi()
     networkStatusLabel_->setObjectName(QStringLiteral("StatusPill"));
     headerRow->addWidget(networkStatusLabel_);
     headerRow->addSpacing(6);
+    headerRow->addSpacing(6);
     auto* headerActions = new QHBoxLayout();
     headerActions->setSpacing(6);
     callButton_ = new QPushButton(QStringLiteral("📞"), this);
@@ -678,7 +704,7 @@ void QtClientWindow::BuildUi()
     videoButton_->setObjectName(QStringLiteral("HeaderAction"));
     screenShareButton_ = new QPushButton(QStringLiteral("🖥"), this);
     screenShareButton_->setObjectName(QStringLiteral("HeaderAction"));
-    fileActionButton_ = new QPushButton(QStringLiteral("📁"), this);
+    fileActionButton_ = new QPushButton(QStringLiteral("📎"), this);
     fileActionButton_->setObjectName(QStringLiteral("HeaderAction"));
     moreActionButton_ = new QPushButton(QStringLiteral("⋯"), this);
     moreActionButton_->setObjectName(QStringLiteral("HeaderAction"));
@@ -723,6 +749,12 @@ void QtClientWindow::BuildUi()
     alertBanner_->setVisible(false);
     formLayout->addWidget(alertBanner_);
 
+    emptyStateLabel_ = new QLabel(QStringLiteral("选择左侧会话开始聊天"), this);
+    emptyStateLabel_->setAlignment(Qt::AlignCenter);
+    emptyStateLabel_->setVisible(false);
+    emptyStateLabel_->setObjectName(QStringLiteral("StatusPill"));
+    formLayout->addWidget(emptyStateLabel_);
+
     formLayout->addWidget(new QLabel(QStringLiteral("会话流")));
     messageView_ = new QListWidget(this);
     messageView_->setFrameShape(QFrame::NoFrame);
@@ -737,6 +769,7 @@ void QtClientWindow::BuildUi()
     groupInfoPanel_ = new QFrame(this);
     groupInfoPanel_->setObjectName(QStringLiteral("SettingsPanel"));
     groupInfoPanel_->setMinimumWidth(220);
+    groupInfoPanel_->setMaximumWidth(280);
     auto* groupLayout = new QVBoxLayout(groupInfoPanel_);
     auto* groupTitle = new QLabel(QStringLiteral("群公告 / 成员"), groupInfoPanel_);
     groupTitle->setObjectName(QStringLiteral("SidebarTitle"));
@@ -750,9 +783,9 @@ void QtClientWindow::BuildUi()
     messageRow->addWidget(groupInfoPanel_, 1);
     formLayout->addLayout(messageRow, 1);
 
-    auto composerPanel = new QFrame(this);
-    composerPanel->setObjectName(QStringLiteral("Composer"));
-    auto* composerLayout = new QVBoxLayout(composerPanel);
+    composerPanel_ = new QFrame(this);
+    composerPanel_->setObjectName(QStringLiteral("Composer"));
+    auto* composerLayout = new QVBoxLayout(composerPanel_);
     composerLayout->setSpacing(10);
     composerLayout->addWidget(messageEdit_);
 
@@ -762,11 +795,11 @@ void QtClientWindow::BuildUi()
     toolbarRow->addWidget(boldButton_);
     toolbarRow->addWidget(italicButton_);
     toolbarRow->addWidget(codeButton_);
-    QPushButton* clipButton = new QPushButton(QStringLiteral("✂"), this);
+    QPushButton* clipButton = new QPushButton(QStringLiteral("✂️"), this);
     clipButton->setObjectName(QStringLiteral("HeaderAction"));
-    QPushButton* folderButton = new QPushButton(QStringLiteral("📁"), this);
+    QPushButton* folderButton = new QPushButton(QStringLiteral("🖼"), this);
     folderButton->setObjectName(QStringLiteral("HeaderAction"));
-    QPushButton* mailButton = new QPushButton(QStringLiteral("✉"), this);
+    QPushButton* mailButton = new QPushButton(QStringLiteral("✉️"), this);
     mailButton->setObjectName(QStringLiteral("HeaderAction"));
     QPushButton* micButton = new QPushButton(QStringLiteral("🎤"), this);
     micButton->setObjectName(QStringLiteral("HeaderAction"));
@@ -795,7 +828,7 @@ void QtClientWindow::BuildUi()
     mediaProgressRow->addWidget(startButton_);
     mediaProgressRow->addWidget(sendMenuButton_);
     composerLayout->addLayout(mediaProgressRow);
-    formLayout->addWidget(composerPanel);
+    formLayout->addWidget(composerPanel_);
 
     settingsPanel_ = new QFrame(this);
     settingsPanel_->setObjectName(QStringLiteral("SettingsPanel"));
@@ -954,8 +987,9 @@ void QtClientWindow::BuildUi()
     hSplit_->setStretchFactor(1, 3);
     hSplit_->setStretchFactor(2, 2);
     hSplit_->setCollapsible(0, true);
+    hSplit_->setCollapsible(1, true);
     hSplit_->setCollapsible(2, true);
-    hSplit_->setSizes(QList<int>({240, 780, 0}));
+    hSplit_->setSizes(QList<int>({280, 720, 0}));
     settingsCollapsed_ = true;
     if (toggleSettingsButton_ != nullptr)
     {
@@ -969,22 +1003,14 @@ void QtClientWindow::BuildUi()
     mainPageLayout->setSpacing(10);
     mainPageLayout->addWidget(hSplit_, 1);
 
-    listPage_ = new QWidget(this);
-    auto* listLayout = new QHBoxLayout(listPage_);
-    listLayout->setContentsMargins(0, 0, 0, 0);
-    listLayout->setSpacing(10);
-    listLayout->addWidget(navRail_);
-    listLayout->addWidget(sidebar_, 1);
-
     mainStack_->addWidget(loginPage_);
-    mainStack_->addWidget(listPage_);
     mainStack_->addWidget(mainPage_);
     mainStack_->setCurrentWidget(loginPage_);
 
     auto root = new QHBoxLayout(this);
     root->addWidget(mainStack_);
     setLayout(root);
-    resize(1180, 720);
+    resize(1040, 760);
 
     sendShortcutEnter_ = new QShortcut(QKeySequence(Qt::Key_Return), this);
     connect(sendShortcutEnter_, &QShortcut::activated, this, [this]() {
@@ -1201,6 +1227,7 @@ void QtClientWindow::ApplyTheme()
         QListWidget { background: %3; border: 1px solid %4; border-radius: 8px; color: %2; }
         QListWidget::item { padding: 6px; }
         QListWidget::item:selected { background: %5; color: #ffffff; }
+        QFrame#ListPanel { background: transparent; }
         QLineEdit, QPlainTextEdit, QComboBox, QSpinBox {
             background: %3;
             color: %2;
@@ -1213,11 +1240,19 @@ void QtClientWindow::ApplyTheme()
             background-color: %5;
             color: #ffffff;
             border: none;
-            border-radius: 12px;
-            padding: 12px 18px;
+            border-radius: 10px;
+            padding: 8px 14px;
             font-weight: 600;
         }
         QPushButton:hover { background-color: %5; }
+        QPushButton#GhostButton {
+            background: transparent;
+            color: %2;
+            border: 1px solid %4;
+            border-radius: 10px;
+            padding: 6px 10px;
+        }
+        QPushButton#GhostButton:hover { border-color: %5; color: %5; }
         QPushButton#StopButton { background-color: #dc2626; }
         QPushButton#StopButton:hover { background-color: #b91c1c; }
         QCheckBox { padding-left: 4px; }
@@ -2667,17 +2702,73 @@ void QtClientWindow::ShowListPage()
 {
     currentPeer_.clear();
     currentPeerIsGroup_ = false;
-    if (mainStack_ && listPage_)
+    if (sessionLabel_)
     {
-        mainStack_->setCurrentWidget(listPage_);
-        resize(420, 720);
+        sessionLabel_->setText(QStringLiteral("选择会话"));
     }
+    if (channelStatusLabel_)
+    {
+        channelStatusLabel_->setText(QStringLiteral("频道: 未选"));
+    }
+    if (groupInfoPanel_)
+    {
+        groupInfoPanel_->setVisible(false);
+    }
+    if (emptyStateLabel_)
+    {
+        emptyStateLabel_->setVisible(true);
+    }
+    if (messageView_)
+    {
+        messageView_->setVisible(false);
+    }
+    if (composerPanel_)
+    {
+        composerPanel_->setVisible(false);
+    }
+    if (startButton_)
+    {
+        startButton_->setEnabled(false);
+    }
+    if (stopButton_)
+    {
+        stopButton_->setEnabled(false);
+    }
+    if (mainStack_ && mainPage_)
+    {
+        mainStack_->setCurrentWidget(mainPage_);
+    }
+    if (hSplit_)
+    {
+        hSplit_->setSizes(QList<int>({320, 0, 0}));
+    }
+    resize(480, 760);
 }
 
 void QtClientWindow::ShowChatPage(const QString& peer, bool isGroup)
 {
     currentPeer_ = peer;
     currentPeerIsGroup_ = isGroup;
+    if (emptyStateLabel_)
+    {
+        emptyStateLabel_->setVisible(false);
+    }
+    if (messageView_)
+    {
+        messageView_->setVisible(true);
+    }
+    if (composerPanel_)
+    {
+        composerPanel_->setVisible(true);
+    }
+    if (startButton_)
+    {
+        startButton_->setEnabled(true);
+    }
+    if (stopButton_)
+    {
+        stopButton_->setEnabled(true);
+    }
     if (sessionLabel_)
     {
         sessionLabel_->setText(QStringLiteral("目标: %1").arg(peer));
@@ -2700,8 +2791,14 @@ void QtClientWindow::ShowChatPage(const QString& peer, bool isGroup)
     if (mainStack_ && mainPage_)
     {
         mainStack_->setCurrentWidget(mainPage_);
-        resize(1180, 720);
     }
+    if (hSplit_)
+    {
+        const int right = settingsCollapsed_ ? 0 : (lastSettingsWidth_ > 0 ? lastSettingsWidth_ : 260);
+        const int chatWidth = isGroup ? 700 : 760;
+        hSplit_->setSizes(QList<int>({300, chatWidth, right}));
+    }
+    resize(isGroup ? 1180 : 1040, 760);
 }
 
 void QtClientWindow::UpdateAccountUi()
@@ -2735,15 +2832,15 @@ void QtClientWindow::ToggleSettings()
     QList<int> sizes = hSplit_->sizes();
     if (sizes.size() < 3)
     {
-        sizes = {220, 780, 0};
+        sizes = {300, 720, 0};
     }
     if (settingsCollapsed_)
     {
         const int targetWidth = lastSettingsWidth_ > 0 ? lastSettingsWidth_ : 280;
         sizes[2] = targetWidth;
-        if (sizes[1] < 420)
+        if (sizes[1] < 480)
         {
-            sizes[1] = 420;
+            sizes[1] = 480;
         }
         hSplit_->setSizes(sizes);
         settingsCollapsed_ = false;
@@ -2777,7 +2874,7 @@ void QtClientWindow::ToggleSidebar()
     QList<int> sizes = hSplit_->sizes();
     if (sizes.size() < 3)
     {
-        sizes = {200, 680, 320};
+        sizes = {300, 720, 0};
     }
     QPropertyAnimation* anim = new QPropertyAnimation(hSplit_, "sizes");
     anim->setDuration(220);
@@ -2786,15 +2883,15 @@ void QtClientWindow::ToggleSidebar()
     if (sidebarCollapsed_)
     {
         anim->setStartValue(QVariant::fromValue(sizes));
-        anim->setEndValue(QVariant::fromValue(QList<int>({0, sizes[1] + sizes[0] / 2, sizes.value(2, 320)})));
+        anim->setEndValue(QVariant::fromValue(QList<int>({0, sizes[1] + sizes[0] / 2, sizes.value(2, 0)})));
         toggleSidebarButton_->setText(QStringLiteral("展开会话"));
     }
     else
     {
-        const int chatSize = std::max(420, sizes.value(1, 680));
-        const int settingsSize = sizes.value(2, 320);
+        const int chatSize = std::max(480, sizes.value(1, 720));
+        const int settingsSize = sizes.value(2, 0);
         anim->setStartValue(QVariant::fromValue(QList<int>({0, chatSize, settingsSize})));
-        anim->setEndValue(QVariant::fromValue(QList<int>({220, chatSize, settingsSize})));
+        anim->setEndValue(QVariant::fromValue(QList<int>({300, chatSize, settingsSize})));
         toggleSidebarButton_->setText(QStringLiteral("隐藏会话"));
     }
     anim->start(QAbstractAnimation::DeleteWhenStopped);

@@ -493,6 +493,9 @@ int wmain(int argc, wchar_t* argv[])
             LaunchFn launch = reinterpret_cast<LaunchFn>(::GetProcAddress(lib, "LaunchMiClientQt"));
             if (launch != nullptr)
             {
+#ifdef _WIN32
+                ::FreeConsole();
+#endif
                 std::vector<std::string> utf8Args;
                 std::vector<char*> ptrs;
                 utf8Args.reserve(static_cast<std::size_t>(argc));

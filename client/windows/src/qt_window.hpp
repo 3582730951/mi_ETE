@@ -168,7 +168,6 @@ private:
     QStackedWidget* mainStack_;
     QWidget* loginPage_;
     QWidget* mainPage_;
-    QWidget* listPage_;
     QLabel* loginServerLabel_;
     QLineEdit* loginUserEdit_;
     QLineEdit* loginPassEdit_;
@@ -180,6 +179,8 @@ private:
     QFrame* navRail_;
     QFrame* mainPanel_;
     QFrame* groupInfoPanel_;
+    QFrame* composerPanel_;
+    QLabel* emptyStateLabel_;
     QLabel* groupAnnouncement_;
     QListWidget* groupMembers_;
     QFrame* settingsPanel_;
