@@ -30,11 +30,13 @@ class QComboBox;
 class QCheckBox;
 class QFrame;
 class QListWidget;
+class QListWidgetItem;
 class QSplitter;
 class QLabel;
 class QProgressBar;
 class QCloseEvent;
 class QHBoxLayout;
+class QNetworkAccessManager;
 
 class QtClientWindow : public QWidget
 {
