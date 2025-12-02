@@ -152,6 +152,7 @@ QtClientWindow::QtClientWindow(QWidget* parent)
       toggleSidebarButton_(nullptr),
       toggleSettingsButton_(nullptr),
       switchAccountButton_(nullptr),
+      backButton_(nullptr),
       callButton_(nullptr),
       videoButton_(nullptr),
       screenShareButton_(nullptr),
@@ -172,6 +173,7 @@ QtClientWindow::QtClientWindow(QWidget* parent)
       mainStack_(nullptr),
       loginPage_(nullptr),
       mainPage_(nullptr),
+      listPage_(nullptr),
       loginServerLabel_(nullptr),
       loginUserEdit_(nullptr),
       loginPassEdit_(nullptr),
@@ -206,6 +208,9 @@ QtClientWindow::QtClientWindow(QWidget* parent)
       statusLabels_(),
       statusBadges_(),
       sessionItems_(),
+      sessionBadgeLabels_(),
+      sessionNameLabels_(),
+      sessionMetaLabels_(),
       mediaPreviewCache_(),
       mediaOverlay_(),
       lastSeen_(),
@@ -247,7 +252,9 @@ QtClientWindow::QtClientWindow(QWidget* parent)
       activeGroupPalette_(),
       currentPaletteGroup_(QStringLiteral("默认合集")),
       speedHistoryPersisted_(),
-      preserveHistoryNextRun_(false)
+      preserveHistoryNextRun_(false),
+      currentPeer_(),
+      currentPeerIsGroup_(false)
 {
     BuildUi();
     ApplyStyle();
@@ -417,6 +424,7 @@ void QtClientWindow::BuildUi()
             SaveSettings();
             unreadCount_[m.captured(1)] = 0;
             UpdateSessionPresence(m.captured(1));
+            ShowChatPage(m.captured(1), false);
         }
     });
     connect(sessionSearch_, &QLineEdit::textChanged, this, [this](const QString& key) {
@@ -582,8 +590,14 @@ void QtClientWindow::BuildUi()
     mainPanel_->setObjectName(QStringLiteral("ChatPanel"));
     auto formLayout = new QVBoxLayout(mainPanel_);
     auto headerRow = new QHBoxLayout();
+    backButton_ = new QPushButton(QStringLiteral("← 返回"), this);
+    backButton_->setObjectName(QStringLiteral("SidebarToggle"));
+    backButton_->setFixedWidth(72);
+    connect(backButton_, &QPushButton::clicked, this, &QtClientWindow::ShowListPage);
     auto headline = new QLabel(QStringLiteral("对话"));
     headline->setObjectName(QStringLiteral("Headline"));
+    headerRow->addWidget(backButton_);
+    headerRow->addSpacing(4);
     headerRow->addWidget(headline);
     headerRow->addStretch();
     accountLabel_ = new QLabel(QStringLiteral("账户: 未登录 @ %1").arg(defaultServer));
@@ -886,9 +900,17 @@ void QtClientWindow::BuildUi()
     auto* mainPageLayout = new QHBoxLayout(mainPage_);
     mainPageLayout->setContentsMargins(0, 0, 0, 0);
     mainPageLayout->setSpacing(10);
-    mainPageLayout->addWidget(navRail_);
     mainPageLayout->addWidget(hSplit_, 1);
+
+    listPage_ = new QWidget(this);
+    auto* listLayout = new QHBoxLayout(listPage_);
+    listLayout->setContentsMargins(0, 0, 0, 0);
+    listLayout->setSpacing(10);
+    listLayout->addWidget(navRail_);
+    listLayout->addWidget(sidebar_, 1);
+
     mainStack_->addWidget(loginPage_);
+    mainStack_->addWidget(listPage_);
     mainStack_->addWidget(mainPage_);
     mainStack_->setCurrentWidget(loginPage_);
 
@@ -1017,10 +1039,7 @@ void QtClientWindow::BuildUi()
     if (loginRemember_ && loginRemember_->isChecked())
     {
         loggedIn_ = true;
-        if (mainStack_)
-        {
-            mainStack_->setCurrentWidget(mainPage_ ? mainPage_ : hSplit_);
-        }
+        ShowListPage();
     }
     else if (mainStack_ && loginPage_)
     {
@@ -2472,15 +2491,42 @@ void QtClientWindow::ApplyLogin()
     }
     loggedIn_ = true;
     UpdateAccountUi();
-    if (mainStack_)
-    {
-        mainStack_->setCurrentWidget(mainPage_ ? mainPage_ : hSplit_);
-    }
+    ShowListPage();
     if (statusLabel_)
     {
         statusLabel_->setText(QStringLiteral("状态：已登录"));
     }
     SaveSettings();
+}
+
+void QtClientWindow::ShowListPage()
+{
+    currentPeer_.clear();
+    currentPeerIsGroup_ = false;
+    if (mainStack_ && listPage_)
+    {
+        mainStack_->setCurrentWidget(listPage_);
+        resize(420, 720);
+    }
+}
+
+void QtClientWindow::ShowChatPage(const QString& peer, bool isGroup)
+{
+    currentPeer_ = peer;
+    currentPeerIsGroup_ = isGroup;
+    if (sessionLabel_)
+    {
+        sessionLabel_->setText(QStringLiteral("目标: %1").arg(peer));
+    }
+    if (channelStatusLabel_)
+    {
+        channelStatusLabel_->setText(isGroup ? QStringLiteral("频道: 群聊") : QStringLiteral("频道: 单聊"));
+    }
+    if (mainStack_ && mainPage_)
+    {
+        mainStack_->setCurrentWidget(mainPage_);
+        resize(1180, 720);
+    }
 }
 
 void QtClientWindow::UpdateAccountUi()

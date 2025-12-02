@@ -114,6 +114,8 @@ private:
     void SetUiEnabled(bool enabled);
     void ApplySessionWidget(const QString& peer, QListWidgetItem* item, bool online);
     void UpdateSessionBadge(const QString& peer);
+    void ShowListPage();
+    void ShowChatPage(const QString& peer, bool isGroup);
     void ToggleSettings();
     void ShowLoginPage();
     void ApplyLogin();
@@ -143,6 +145,7 @@ private:
     QPushButton* toggleSidebarButton_;
     QPushButton* toggleSettingsButton_;
     QPushButton* switchAccountButton_;
+    QPushButton* backButton_;
     QPushButton* callButton_;
     QPushButton* videoButton_;
     QPushButton* screenShareButton_;
@@ -163,6 +166,7 @@ private:
     QStackedWidget* mainStack_;
     QWidget* loginPage_;
     QWidget* mainPage_;
+    QWidget* listPage_;
     QLabel* loginServerLabel_;
     QLineEdit* loginUserEdit_;
     QLineEdit* loginPassEdit_;
@@ -249,4 +253,6 @@ private:
     QString currentPaletteGroup_;
     std::deque<double> speedHistoryPersisted_;
     bool preserveHistoryNextRun_ = false;
+    QString currentPeer_;
+    bool currentPeerIsGroup_ = false;
 };
