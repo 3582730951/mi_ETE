@@ -1,0 +1,12 @@
+listen_host: 0.0.0.0
+listen_port: 7845
+panel_host: 127.0.0.1
+panel_port: 9000
+panel_token: ""
+kcp_interval_ms: 10
+kcp_mtu: 1400
+kcp_send_window: 256
+kcp_recv_window: 256
+kcp_idle_timeout_ms: 15000
+kcp_peer_rebind_ms: 500
+poll_sleep_ms: 5

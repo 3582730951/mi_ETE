@@ -1,0 +1,137 @@
+name: build-and-test
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        build_target: [all, server, client]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup MSVC Environment
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: x64
+      - name: Configure
+        run: |
+          $ErrorActionPreference = "Stop"
+          if ("${{ matrix.build_target }}" -eq "server") {
+            cmake -S core -B build -G "Ninja" -DBUILD_SERVER=ON -DBUILD_CLIENT_WINDOWS=OFF -DBUILD_SHARED_TESTS=ON -DCMAKE_BUILD_TYPE=Release
+          } elseif ("${{ matrix.build_target }}" -eq "client") {
+            cmake -S core -B build -G "Ninja" -DBUILD_SERVER=OFF -DBUILD_CLIENT_WINDOWS=ON -DBUILD_SHARED_TESTS=ON -DCMAKE_BUILD_TYPE=Release
+          } else {
+            cmake -S core -B build -G "Ninja" -DBUILD_SERVER=ON -DBUILD_CLIENT_WINDOWS=ON -DBUILD_SHARED_TESTS=ON -DCMAKE_BUILD_TYPE=Release
+          }
+      - name: Build
+        run: cmake --build build --config Release
+      - name: Test
+        run: ctest --test-dir build --output-on-failure -C Release
+      - name: Generate self-signed certs
+        if: matrix.build_target == 'all'
+        run: pwsh -File core/scripts/gen_certs.ps1 -OutputDir core/dist/certs -Password changeit
+      - name: Package Windows deliverables
+        if: matrix.build_target == 'all'
+        run: |
+          pwsh -File core/scripts/package_win.ps1 -BuildDir build/client/windows -OutputDir dist/win
+          pwsh -File core/scripts/package_artifacts.ps1 -BuildServer build/server -BuildClientWin build/client/windows -Output dist/artifacts.zip -CertPath core/dist/certs -CertPassword changeit
+      - name: Upload Release Bundle
+        if: matrix.build_target == 'all'
+        uses: actions/upload-artifact@v4
+        with:
+          name: mi-bundle-windows
+          path: core/dist/artifacts.zip
+      - name: Upload Artifacts (binaries)
+        uses: actions/upload-artifact@v4
+        with:
+          name: mi-${{ matrix.build_target }}-windows-binaries
+          path: |
+            build/**/*.exe
+            build/**/*.dll
+            build/**/*.pdb
+          if-no-files-found: ignore
+      - name: Upload Test Reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mi-${{ matrix.build_target }}-ctest-logs
+          path: |
+            build/Testing/**/*.xml
+            build/Testing/**/*.log
+          if-no-files-found: ignore
+      - name: Cache CMake build
+        uses: actions/cache@v4
+        with:
+          path: |
+            build/_deps
+            build/vcpkg_installed
+          key: cmake-cache-${{ runner.os }}-${{ matrix.build_target }}-${{ hashFiles('core/**/CMakeLists.txt') }}
+          restore-keys: |
+            cmake-cache-${{ runner.os }}-${{ matrix.build_target }}-
+
+  windows-coverage:
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: msys2 {0}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup MSYS2 with MinGW
+        uses: msys2/setup-msys2@v2
+        with:
+          update: true
+          install: >-
+            mingw-w64-x86_64-toolchain
+            mingw-w64-x86_64-cmake
+            mingw-w64-x86_64-ninja
+            mingw-w64-x86_64-gcovr
+      - name: Configure (coverage)
+        run: |
+          cmake -S core -B build-coverage -G "Ninja" \
+            -DBUILD_SERVER=ON -DBUILD_CLIENT_WINDOWS=ON -DBUILD_SHARED_TESTS=ON \
+            -DCMAKE_BUILD_TYPE=Debug \
+            -DCMAKE_C_FLAGS="--coverage" -DCMAKE_CXX_FLAGS="--coverage"
+      - name: Build (coverage)
+        run: cmake --build build-coverage --config Debug
+      - name: Test (coverage)
+        run: ctest --test-dir build-coverage --output-on-failure -C Debug
+      - name: Generate coverage report
+        run: |
+          gcovr -r core --filter core -j 2 --xml -o build-coverage/coverage.xml --html-details build-coverage/coverage.html
+      - name: Upload Coverage
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-windows
+          path: |
+            build-coverage/coverage.xml
+            build-coverage/coverage.html
+          if-no-files-found: ignore
+
+  android-placeholder:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Cache gradle
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: gradle-${{ runner.os }}-${{ hashFiles('core/client/android/**') }}
+      - name: Build Android placeholder
+        working-directory: core/client/android
+        run: |
+          chmod +x gradlew || true
+          ./gradlew assembleDebug || true
+      - name: Upload Android placeholder
+        uses: actions/upload-artifact@v4
+        with:
+          name: mi-android-placeholder
+          path: |
+            core/client/android/app/build/outputs/apk/debug/app-debug.apk
+            core/client/android/README.md
+          if-no-files-found: ignore

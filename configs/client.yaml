@@ -1,0 +1,11 @@
+server: 127.0.0.1:7845
+user: demo
+password: pass
+message: secure_payload
+target: 0
+timeout_ms: 2000
+media_path: ""
+media_chunk: 1200
+revoke_after: false
+retries: 1
+retry_delay_ms: 500

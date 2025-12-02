@@ -1,0 +1,23 @@
+# Build artifacts
+/build/
+/build-ci/
+
+# IDE/editor
+.vs/
+.vscode/
+
+# Binaries & logs
+*.exe
+*.dll
+*.pdb
+*.log
+*.tmp
+
+# CMake/Ninja cache
+CMakeFiles/
+CMakeCache.txt
+cmake-build-*/
+
+# OS noise
+Thumbs.db
+*.DS_Store
