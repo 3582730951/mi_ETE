@@ -112,6 +112,8 @@ private:
     QPixmap PrepareMediaThumb(const QString& path) const;
     void closeEvent(QCloseEvent* event) override;
     void SetUiEnabled(bool enabled);
+    void ApplySessionWidget(const QString& peer, QListWidgetItem* item, bool online);
+    void UpdateSessionBadge(const QString& peer);
     void ToggleSettings();
     void ShowLoginPage();
     void ApplyLogin();
@@ -195,6 +197,9 @@ private:
     std::unordered_map<std::uint64_t, QLabel*> statusLabels_;
     std::unordered_map<std::uint64_t, QLabel*> statusBadges_;
     std::unordered_map<QString, QListWidgetItem*> sessionItems_;
+    std::unordered_map<QString, QLabel*> sessionBadgeLabels_;
+    std::unordered_map<QString, QLabel*> sessionNameLabels_;
+    std::unordered_map<QString, QLabel*> sessionMetaLabels_;
     std::unordered_map<QLabel*, QPixmap> mediaPreviewCache_;
     std::unordered_map<std::uint64_t, QPointer<QLabel>> mediaPreviewById_;
     std::unordered_map<std::uint64_t, QPointer<QLabel>> mediaOverlay_;

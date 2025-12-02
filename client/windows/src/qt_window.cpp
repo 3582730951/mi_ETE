@@ -1135,6 +1135,15 @@ void QtClientWindow::ApplyTheme()
             font-weight: 700;
             color: #38bdf8;
         }
+        QLabel#SessionName { font-weight: 600; }
+        QLabel#SessionMeta { color: #94a3b8; font-size: 11px; }
+        QLabel#UnreadBadge {
+            background: #ef4444;
+            color: #ffffff;
+            border-radius: 10px;
+            padding: 2px 6px;
+            min-height: 20px;
+        }
         QFrame#BubbleOutbound {
             background: %5;
             border-radius: 12px;
@@ -1641,6 +1650,7 @@ void QtClientWindow::UpdateSessionPresence(const QString& peer)
         item->setForeground(QColor("#38bdf8"));
         sessionItems_[peer] = item;
         feedList_->addItem(item);
+        ApplySessionWidget(peer, item, true);
     }
     else
     {
@@ -1651,6 +1661,34 @@ void QtClientWindow::UpdateSessionPresence(const QString& peer)
             it->second->setText(QStringLiteral("会话 %1 · 在线%2").arg(peer, badge));
             it->second->setForeground(QColor("#22c55e"));
         }
+    }
+    UpdateSessionBadge(peer);
+    auto metaIt = sessionMetaLabels_.find(peer);
+    if (metaIt != sessionMetaLabels_.end() && metaIt->second)
+    {
+        metaIt->second->setText(QStringLiteral("在线"));
+        metaIt->second->setStyleSheet(QStringLiteral("color:#22c55e;"));
+    }
+}
+
+void QtClientWindow::UpdateSessionBadge(const QString& peer)
+{
+    auto badgeIt = sessionBadgeLabels_.find(peer);
+    if (badgeIt == sessionBadgeLabels_.end() || badgeIt->second == nullptr)
+    {
+        return;
+    }
+    const int unread = unreadCount_[peer];
+    QLabel* badge = badgeIt->second;
+    if (unread > 0)
+    {
+        const QString text = unread > 99 ? QStringLiteral("99+") : QString::number(unread);
+        badge->setText(text);
+        badge->setVisible(true);
+    }
+    else
+    {
+        badge->setVisible(false);
     }
 }
 
@@ -1955,6 +1993,7 @@ void QtClientWindow::LoadSessionCache()
         {
             lastSeen_[id] = QDateTime::currentDateTime();
         }
+        ApplySessionWidget(id, item, online);
     }
 }
 
@@ -2140,6 +2179,10 @@ void QtClientWindow::ApplySessionList(const std::vector<std::pair<std::uint32_t,
         }
         it = sessionItems_.erase(it);
     }
+    sessionBadgeLabels_.clear();
+    sessionNameLabels_.clear();
+    sessionMetaLabels_.clear();
+    sessionMetaLabels_.clear();
     lastSeen_.clear();
     QJsonArray arr;
     for (const auto& item : sessions)
@@ -2150,6 +2193,11 @@ void QtClientWindow::ApplySessionList(const std::vector<std::pair<std::uint32_t,
         obj.insert(QStringLiteral("online"), true);
         arr.append(obj);
         lastSeen_[QString::number(item.first)] = QDateTime::currentDateTime();
+        const QString peer = QString::number(item.first);
+        auto* listItem = new QListWidgetItem(QStringLiteral("会话 %1").arg(peer), feedList_);
+        feedList_->addItem(listItem);
+        sessionItems_[peer] = listItem;
+        ApplySessionWidget(peer, listItem, true);
     }
     PersistSessionsToFile(arr);
     LoadSessionCache();
@@ -3230,6 +3278,8 @@ void QtClientWindow::BootstrapSessionList()
         return;
     }
     sessionItems_.clear();
+    sessionBadgeLabels_.clear();
+    sessionNameLabels_.clear();
     lastSeen_.clear();
     feedList_->clear();
     auto self = new QListWidgetItem(QStringLiteral("会话 自己 · 在线"), feedList_);
@@ -3238,6 +3288,7 @@ void QtClientWindow::BootstrapSessionList()
     feedList_->addItem(self);
     sessionItems_[QStringLiteral("self")] = self;
     lastSeen_[QStringLiteral("self")] = QDateTime::currentDateTime();
+    ApplySessionWidget(QStringLiteral("self"), self, true);
 
     LoadSessionCache();
 
@@ -3250,6 +3301,7 @@ void QtClientWindow::BootstrapSessionList()
         peer->setData(Qt::UserRole, 0);
         sessionItems_[peerId] = peer;
         feedList_->addItem(peer);
+        ApplySessionWidget(peerId, peer, false);
     }
 }
 
@@ -3271,6 +3323,13 @@ void QtClientWindow::OnPresenceTick()
                               .arg(it->first, online ? QStringLiteral("在线") : QStringLiteral("离线"), badge));
             item->setForeground(unread > 0 ? QColor("#ef4444") : (online ? QColor("#22c55e") : QColor("#64748b")));
             item->setData(Qt::UserRole, unread);
+            auto metaIt = sessionMetaLabels_.find(it->first);
+            if (metaIt != sessionMetaLabels_.end() && metaIt->second)
+            {
+                metaIt->second->setText(online ? QStringLiteral("在线") : QStringLiteral("离线"));
+                metaIt->second->setStyleSheet(online ? QStringLiteral("color:#22c55e;") : QStringLiteral("color:#94a3b8;"));
+            }
+            UpdateSessionBadge(it->first);
         }
     }
 }
@@ -3324,6 +3383,54 @@ void QtClientWindow::OnReadTick()
             ++it;
         }
     }
+}
+
+void QtClientWindow::ApplySessionWidget(const QString& peer, QListWidgetItem* item, bool online)
+{
+    if (item == nullptr || feedList_ == nullptr)
+    {
+        return;
+    }
+    QWidget* w = new QWidget(feedList_);
+    auto* row = new QHBoxLayout(w);
+    row->setContentsMargins(8, 4, 8, 4);
+    row->setSpacing(8);
+
+    auto* avatar = new QLabel(w);
+    avatar->setObjectName(QStringLiteral("Avatar"));
+    avatar->setAlignment(Qt::AlignCenter);
+    avatar->setFixedSize(36, 36);
+    QString avatarText = peer == QStringLiteral("self") ? QStringLiteral("我") : peer.right(2);
+    avatar->setText(avatarText);
+
+    auto* name = new QLabel(peer == QStringLiteral("self") ? QStringLiteral("自己") : QStringLiteral("会话 %1").arg(peer), w);
+    name->setObjectName(QStringLiteral("SessionName"));
+    auto* meta = new QLabel(online ? QStringLiteral("在线") : QStringLiteral("离线"), w);
+    meta->setObjectName(QStringLiteral("SessionMeta"));
+    auto* nameCol = new QVBoxLayout();
+    nameCol->setContentsMargins(0, 0, 0, 0);
+    nameCol->setSpacing(2);
+    nameCol->addWidget(name);
+    nameCol->addWidget(meta);
+
+    auto* badge = new QLabel(w);
+    badge->setObjectName(QStringLiteral("UnreadBadge"));
+    badge->setAlignment(Qt::AlignCenter);
+    badge->setMinimumWidth(22);
+    badge->setVisible(false);
+
+    row->addWidget(avatar);
+    row->addLayout(nameCol, 1);
+    row->addStretch();
+    row->addWidget(badge);
+
+    item->setSizeHint(QSize(item->sizeHint().width(), 54));
+    feedList_->setItemWidget(item, w);
+    sessionBadgeLabels_[peer] = badge;
+    sessionNameLabels_[peer] = name;
+    sessionMetaLabels_[peer] = meta;
+    meta->setStyleSheet(online ? QStringLiteral("color:#22c55e;") : QStringLiteral("color:#94a3b8;"));
+    UpdateSessionBadge(peer);
 }
 
 void QtClientWindow::MarkAllRead()
