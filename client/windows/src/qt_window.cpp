@@ -115,7 +115,7 @@ QString DefaultServerAddress()
 #ifdef MI_DEFAULT_SERVER_ADDR
     return QStringLiteral(MI_DEFAULT_SERVER_ADDR);
 #else
-    const QString env = qEnvironmentVariable(QStringLiteral("MI_SERVER_ADDR"));
+    const QString env = QString::fromLocal8Bit(qgetenv("MI_SERVER_ADDR"));
     if (!env.isEmpty())
     {
         return env;
