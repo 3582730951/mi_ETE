@@ -4,6 +4,7 @@ add_library(mi_client_core
 )
 
 option(BUILD_CLIENT_QT "Build Qt GUI client (requires Qt5/Qt6 Widgets)" ON)
+set(MI_DEFAULT_SERVER_ADDR "127.0.0.1:19997" CACHE STRING "Default server address for Qt client (override in CI)")
 
 target_include_directories(mi_client_core
     PUBLIC
@@ -66,6 +67,7 @@ if(BUILD_CLIENT_QT)
         src/qt_window.hpp
     )
     add_library(mi_client_qt_ui SHARED ${QT_SOURCES})
+    target_compile_definitions(mi_client_qt_ui PRIVATE MI_DEFAULT_SERVER_ADDR=\"${MI_DEFAULT_SERVER_ADDR}\")
     set_target_properties(mi_client_qt_ui PROPERTIES AUTOMOC ON)
     target_link_libraries(mi_client_qt_ui PRIVATE ${QT_LIBS} mi_client_core mi_shared)
     if(Qt6Multimedia_FOUND OR Qt5Multimedia_FOUND)

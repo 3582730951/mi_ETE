@@ -37,6 +37,8 @@ class QProgressBar;
 class QCloseEvent;
 class QHBoxLayout;
 class QNetworkAccessManager;
+class QTabWidget;
+class QStackedWidget;
 
 class QtClientWindow : public QWidget
 {
@@ -107,6 +109,10 @@ private:
     QPixmap PrepareMediaThumb(const QString& path) const;
     void closeEvent(QCloseEvent* event) override;
     void SetUiEnabled(bool enabled);
+    void ToggleSettings();
+    void ShowLoginPage();
+    void ApplyLogin();
+    void UpdateAccountUi();
     void StartWorker(bool preserveHistory = false);
     void StopWorker();
     void RefreshPaletteSwatches();
@@ -130,6 +136,8 @@ private:
     QPushButton* browseButton_;
     QPushButton* emojiButton_;
     QPushButton* toggleSidebarButton_;
+    QPushButton* toggleSettingsButton_;
+    QPushButton* switchAccountButton_;
     QProgressBar* mediaProgress_;
     QLabel* mediaStatusLabel_;
     QLabel* speedStatusLabel_;
@@ -140,8 +148,19 @@ private:
     QPlainTextEdit* logEdit_;
     QListWidget* messageView_;
     QListWidget* feedList_;
+    QLineEdit* sessionSearch_;
+    QStackedWidget* mainStack_;
+    QWidget* loginPage_;
+    QLabel* loginServerLabel_;
+    QLineEdit* loginUserEdit_;
+    QLineEdit* loginPassEdit_;
+    QCheckBox* loginRemember_;
+    QLabel* accountLabel_;
+    QLabel* accountNameLabel_;
+    QLabel* accountServerLabel_;
     QFrame* sidebar_;
     QFrame* mainPanel_;
+    QFrame* settingsPanel_;
     QSplitter* hSplit_;
     QLabel* sessionLabel_;
     QComboBox* themeSwitch_;
@@ -197,8 +216,12 @@ private:
     QString certPassword_;
     bool certAllowSelfSigned_ = true;
     QHBoxLayout* paletteSwatchLayout_;
+    QTabWidget* settingsTabs_;
     std::deque<QPixmap> preparedMediaThumbs_;
     bool sidebarCollapsed_;
+    bool settingsCollapsed_;
+    int lastSettingsWidth_;
+    bool loggedIn_;
     QStringList activeGroupPalette_;
     QString currentPaletteGroup_;
     std::deque<double> speedHistoryPersisted_;

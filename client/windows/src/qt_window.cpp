@@ -29,6 +29,7 @@
 #include <QPainterPath>
 #include <QFont>
 #include <QPropertyAnimation>
+#include <QEasingCurve>
 #include <QPoint>
 #include <QTextCursor>
 #include <QMenu>
@@ -50,9 +51,11 @@
 #include <QNetworkReply>
 #include <QNetworkRequest>
 #include <QScopedPointer>
+#include <QStackedWidget>
 #include <QUrl>
 #include <QSpinBox>
 #include <QSplitter>
+#include <QTabWidget>
 #include <QVBoxLayout>
 #include <QVariant>
 #include <QElapsedTimer>
@@ -106,6 +109,20 @@ QString ModeLabel(mi::client::SendMode mode)
         return QStringLiteral("chat");
     }
 }
+
+QString DefaultServerAddress()
+{
+#ifdef MI_DEFAULT_SERVER_ADDR
+    return QStringLiteral(MI_DEFAULT_SERVER_ADDR);
+#else
+    const QString env = qEnvironmentVariable(QStringLiteral("MI_SERVER_ADDR"));
+    if (!env.isEmpty())
+    {
+        return env;
+    }
+    return QStringLiteral("127.0.0.1:19997");
+#endif
+}
 }  // namespace
 
 // TODO: 当服务端开放 HTTP/WS 接口时，替换 SimulateSessionPullFromServer/FetchRemoteSessions 为真实调用
@@ -121,15 +138,18 @@ QtClientWindow::QtClientWindow(QWidget* parent)
       passEdit_(nullptr),
       messageEdit_(nullptr),
       mediaEdit_(nullptr),
-    targetSpin_(nullptr),
-    modeCombo_(nullptr),
-    revokeCheck_(nullptr),
-    reconnectSpin_(nullptr),
-    reconnectDelaySpin_(nullptr),
+      targetSpin_(nullptr),
+      modeCombo_(nullptr),
+      revokeCheck_(nullptr),
+      reconnectSpin_(nullptr),
+      reconnectDelaySpin_(nullptr),
       startButton_(nullptr),
       stopButton_(nullptr),
       browseButton_(nullptr),
       emojiButton_(nullptr),
+      toggleSidebarButton_(nullptr),
+      toggleSettingsButton_(nullptr),
+      switchAccountButton_(nullptr),
       mediaProgress_(nullptr),
       mediaStatusLabel_(nullptr),
       speedStatusLabel_(nullptr),
@@ -140,8 +160,19 @@ QtClientWindow::QtClientWindow(QWidget* parent)
       logEdit_(nullptr),
       messageView_(nullptr),
       feedList_(nullptr),
+      sessionSearch_(nullptr),
+      mainStack_(nullptr),
+      loginPage_(nullptr),
+      loginServerLabel_(nullptr),
+      loginUserEdit_(nullptr),
+      loginPassEdit_(nullptr),
+      loginRemember_(nullptr),
+      accountLabel_(nullptr),
+      accountNameLabel_(nullptr),
+      accountServerLabel_(nullptr),
       sidebar_(nullptr),
       mainPanel_(nullptr),
+      settingsPanel_(nullptr),
       hSplit_(nullptr),
       sessionLabel_(nullptr),
       themeSwitch_(nullptr),
@@ -191,7 +222,11 @@ QtClientWindow::QtClientWindow(QWidget* parent)
       certPassword_(),
       certAllowSelfSigned_(true),
       paletteSwatchLayout_(nullptr),
+      settingsTabs_(nullptr),
       sidebarCollapsed_(false),
+      settingsCollapsed_(true),
+      lastSettingsWidth_(280),
+      loggedIn_(false),
       activeGroupPalette_(),
       currentPaletteGroup_(QStringLiteral("默认合集")),
       speedHistoryPersisted_(),
@@ -266,10 +301,35 @@ void QtClientWindow::BuildUi()
     sidebar_ = new QFrame(this);
     sidebar_->setObjectName(QStringLiteral("Sidebar"));
     auto sideLayout = new QVBoxLayout(sidebar_);
+    sideLayout->setContentsMargins(12, 12, 12, 12);
+    sideLayout->setSpacing(8);
     auto title = new QLabel(QStringLiteral("Mi 聊天"));
     title->setObjectName(QStringLiteral("SidebarTitle"));
     statusLabel_ = new QLabel(QStringLiteral("状态：空闲"));
+    auto accountCard = new QFrame(this);
+    accountCard->setObjectName(QStringLiteral("AccountCard"));
+    auto* accountLayout = new QVBoxLayout(accountCard);
+    accountLayout->setContentsMargins(8, 8, 8, 8);
+    accountLayout->setSpacing(4);
+    auto* accountRow = new QHBoxLayout();
+    auto* avatar = new QLabel(QStringLiteral("U"));
+    avatar->setObjectName(QStringLiteral("Avatar"));
+    accountNameLabel_ = new QLabel(QStringLiteral("未登录"));
+    accountServerLabel_ = new QLabel(defaultServer);
+    accountRow->addWidget(avatar);
+    accountRow->addSpacing(6);
+    accountRow->addWidget(accountNameLabel_, 1);
+    accountLayout->addLayout(accountRow);
+    accountLayout->addWidget(accountServerLabel_);
+    switchAccountButton_ = new QPushButton(QStringLiteral("切换账号"), this);
+    switchAccountButton_->setObjectName(QStringLiteral("SidebarToggle"));
+    switchAccountButton_->setFixedWidth(90);
+    connect(switchAccountButton_, &QPushButton::clicked, this, &QtClientWindow::ShowLoginPage);
+    accountLayout->addWidget(switchAccountButton_);
     auto connectionsLabel = new QLabel(QStringLiteral("会话列表"));
+    sessionSearch_ = new QLineEdit(this);
+    sessionSearch_->setPlaceholderText(QStringLiteral("搜索会话 / Session"));
+    sessionSearch_->setClearButtonEnabled(true);
     feedList_ = new QListWidget(this);
     refreshSessions_ = new QPushButton(QStringLiteral("拉取会话"), this);
     connect(refreshSessions_, &QPushButton::clicked, this, [this]() {
@@ -280,40 +340,23 @@ void QtClientWindow::BuildUi()
     connect(exportSessions, &QPushButton::clicked, this, [this]() { ExportSessionSnapshot(); });
     QPushButton* importSessions = new QPushButton(QStringLiteral("导入会话"), this);
     connect(importSessions, &QPushButton::clicked, this, [this]() { ImportSessionSnapshot(); });
-    accentInput_ = new QLineEdit(this);
-    accentInput_->setPlaceholderText(QStringLiteral("#RRGGBB 自定义色"));
-    QPushButton* applyAccentBtn = new QPushButton(QStringLiteral("应用色"), this);
-    connect(applyAccentBtn, &QPushButton::clicked, this, [this]() {
-        const QString val = accentInput_->text().trimmed();
-        if (!val.startsWith('#') || val.length() < 4)
-        {
-            return;
-        }
-        accentColor_ = val;
-        ApplyTheme();
-        SaveSettings();
-    });
-    paletteSwatchLayout_ = new QHBoxLayout();
-    paletteSwatchLayout_->setContentsMargins(0, 4, 0, 4);
-    paletteSwatchLayout_->setSpacing(6);
-    auto* paletteSwatchContainer = new QWidget(this);
-    paletteSwatchContainer->setLayout(paletteSwatchLayout_);
-    auto* palettePreviewLabel = new QLabel(QStringLiteral("收藏色预览"), this);
 
     sideLayout->addWidget(title);
-    sideLayout->addSpacing(4);
     sideLayout->addWidget(statusLabel_);
-    sideLayout->addSpacing(10);
+    sideLayout->addWidget(accountCard);
+    sideLayout->addSpacing(6);
     sideLayout->addWidget(connectionsLabel);
-    sideLayout->addWidget(refreshSessions_);
-    sideLayout->addWidget(exportSessions);
-    sideLayout->addWidget(importSessions);
     QPushButton* markAllRead = new QPushButton(QStringLiteral("全部已读"), this);
     connect(markAllRead, &QPushButton::clicked, this, &QtClientWindow::MarkAllRead);
-    sideLayout->addWidget(markAllRead);
-    sideLayout->addWidget(palettePreviewLabel);
-    sideLayout->addWidget(paletteSwatchContainer);
-    sideLayout->addWidget(feedList_);
+    auto* listActions = new QHBoxLayout();
+    listActions->setSpacing(6);
+    listActions->addWidget(refreshSessions_);
+    listActions->addWidget(markAllRead);
+    sideLayout->addLayout(listActions);
+    sideLayout->addWidget(sessionSearch_);
+    sideLayout->addWidget(exportSessions);
+    sideLayout->addWidget(importSessions);
+    sideLayout->addWidget(feedList_, 1);
     sideLayout->addStretch();
     connect(feedList_, &QListWidget::itemDoubleClicked, this, [this](QListWidgetItem* item) {
         if (!item)
@@ -331,18 +374,36 @@ void QtClientWindow::BuildUi()
             UpdateSessionPresence(m.captured(1));
         }
     });
+    connect(sessionSearch_, &QLineEdit::textChanged, this, [this](const QString& key) {
+        const QString keyword = key.trimmed();
+        for (int i = 0; i < feedList_->count(); ++i)
+        {
+            QListWidgetItem* item = feedList_->item(i);
+            if (item)
+            {
+                const bool hit = keyword.isEmpty() || item->text().contains(keyword, Qt::CaseInsensitive);
+                item->setHidden(!hit);
+            }
+        }
+    });
 
-    serverEdit_ = new QLineEdit(QStringLiteral("127.0.0.1:7845"), this);
+    const QString defaultServer = DefaultServerAddress();
+    serverEdit_ = new QLineEdit(defaultServer, this);
+    serverEdit_->setPlaceholderText(QStringLiteral("服务器 (构建时指定)"));
+    serverEdit_->setReadOnly(true);
+    serverEdit_->setToolTip(QStringLiteral("服务器地址在构建时指定，默认 127.0.0.1:19997，可通过 GitHub Actions 传入 MI_DEFAULT_SERVER_ADDR"));
     userEdit_ = new QLineEdit(QStringLiteral("user"), this);
     passEdit_ = new QLineEdit(QStringLiteral("pass"), this);
     passEdit_->setEchoMode(QLineEdit::Password);
     messageEdit_ = new QPlainTextEdit(QStringLiteral("secure_payload"), this);
+    messageEdit_->setPlaceholderText(QStringLiteral("输入消息，支持 Markdown，Ctrl+Enter 发送"));
     mediaEdit_ = new QLineEdit(this);
+    mediaEdit_->setPlaceholderText(QStringLiteral("可选：本地文件路径，使用 ; 分隔多个文件"));
     targetSpin_ = new QSpinBox(this);
     targetSpin_->setRange(0, 1'000'000'000);
     modeCombo_ = new QComboBox(this);
     revokeCheck_ = new QCheckBox(QStringLiteral("接收后自动撤回"), this);
-    startButton_ = new QPushButton(QStringLiteral("开始发送"), this);
+    startButton_ = new QPushButton(QStringLiteral("发送"), this);
     stopButton_ = new QPushButton(QStringLiteral("停止"), this);
     stopButton_->setObjectName(QStringLiteral("StopButton"));
     browseButton_ = new QPushButton(QStringLiteral("选择媒体"), this);
@@ -380,24 +441,13 @@ void QtClientWindow::BuildUi()
     modeCombo_->addItem(QStringLiteral("数据"), QVariant::fromValue(static_cast<int>(mi::client::SendMode::Data)));
     modeCombo_->addItem(QStringLiteral("双发"), QVariant::fromValue(static_cast<int>(mi::client::SendMode::Both)));
 
-    mainPanel_ = new QFrame(this);
-    mainPanel_->setObjectName(QStringLiteral("MainPanel"));
-    auto formLayout = new QVBoxLayout(mainPanel_);
-    auto headerRow = new QHBoxLayout();
-    auto headline = new QLabel(QStringLiteral("端到端加密聊天"));
-    headline->setObjectName(QStringLiteral("Headline"));
-    headerRow->addWidget(headline);
-    headerRow->addStretch();
-    toggleSidebarButton_ = new QPushButton(QStringLiteral("折叠侧栏"), this);
-    toggleSidebarButton_->setObjectName(QStringLiteral("SidebarToggle"));
-    toggleSidebarButton_->setFixedWidth(90);
-    connect(toggleSidebarButton_, &QPushButton::clicked, this, &QtClientWindow::ToggleSidebar);
-    headerRow->addWidget(toggleSidebarButton_);
-    headerRow->addSpacing(6);
-    networkStatusLabel_ = new QLabel(QStringLiteral("网络: 未知"));
-    networkStatusLabel_->setObjectName(QStringLiteral("StatusPill"));
-    headerRow->addWidget(networkStatusLabel_);
-    headerRow->addSpacing(6);
+    reconnectSpin_ = new QSpinBox(this);
+    reconnectSpin_->setRange(0, 10);
+    reconnectSpin_->setValue(2);
+    reconnectDelaySpin_ = new QSpinBox(this);
+    reconnectDelaySpin_->setRange(100, 10000);
+    reconnectDelaySpin_->setValue(2000);
+
     themeSwitch_ = new QComboBox(this);
     themeSwitch_->addItem(QStringLiteral("深色"), QVariant::fromValue(1));
     themeSwitch_->addItem(QStringLiteral("浅色"), QVariant::fromValue(0));
@@ -417,6 +467,8 @@ void QtClientWindow::BuildUi()
     accentPaletteBox_->setPlaceholderText(QStringLiteral("收藏色"));
     accentAddButton_ = new QPushButton(QStringLiteral("收藏"), this);
     accentAddButton_->setFixedWidth(52);
+    accentInput_ = new QLineEdit(this);
+    accentInput_->setPlaceholderText(QStringLiteral("#RRGGBB"));
     connect(themeSwitch_, static_cast<void (QComboBox::*)(int)>(&QComboBox::currentIndexChanged), this, [this](int idx) {
         darkTheme_ = themeSwitch_->itemData(idx).toInt() == 1;
         ApplyTheme();
@@ -426,8 +478,6 @@ void QtClientWindow::BuildUi()
         ApplyTheme();
         SaveSettings();
     });
-    accentInput_ = new QLineEdit(this);
-    accentInput_->setPlaceholderText(QStringLiteral("#RRGGBB"));
     connect(accentInput_, &QLineEdit::returnPressed, this, [this]() {
         const QString val = accentInput_->text().trimmed();
         if (!val.startsWith('#') || val.size() < 4)
@@ -483,20 +533,46 @@ void QtClientWindow::BuildUi()
         RefreshPaletteSwatches();
         SaveSettings();
     });
-    headerRow->addWidget(themeSwitch_);
-    headerRow->addWidget(accentSwitch_);
-    headerRow->addWidget(paletteGroupBox_);
-    headerRow->addWidget(accentInput_);
-    headerRow->addWidget(accentAddButton_);
-    headerRow->addWidget(accentPaletteBox_);
+
+    mainPanel_ = new QFrame(this);
+    mainPanel_->setObjectName(QStringLiteral("ChatPanel"));
+    auto formLayout = new QVBoxLayout(mainPanel_);
+    auto headerRow = new QHBoxLayout();
+    auto headline = new QLabel(QStringLiteral("对话"));
+    headline->setObjectName(QStringLiteral("Headline"));
+    headerRow->addWidget(headline);
+    headerRow->addStretch();
+    accountLabel_ = new QLabel(QStringLiteral("账户: 未登录 @ %1").arg(defaultServer));
+    accountLabel_->setObjectName(QStringLiteral("StatusPill"));
+    headerRow->addWidget(accountLabel_);
+    headerRow->addSpacing(6);
+    switchAccountButton_ = new QPushButton(QStringLiteral("切换账号"), this);
+    switchAccountButton_->setObjectName(QStringLiteral("SidebarToggle"));
+    switchAccountButton_->setFixedWidth(90);
+    connect(switchAccountButton_, &QPushButton::clicked, this, &QtClientWindow::ShowLoginPage);
+    headerRow->addWidget(switchAccountButton_);
     headerRow->addSpacing(6);
     sessionLabel_ = new QLabel(QStringLiteral("目标: 自己"));
     sessionLabel_->setObjectName(QStringLiteral("StatusPill"));
     headerRow->addWidget(sessionLabel_);
-    headerRow->addSpacing(8);
-    headerRow->addWidget(new QLabel(QStringLiteral("模式")));
-    headerRow->addWidget(modeCombo_);
+    headerRow->addSpacing(6);
+    networkStatusLabel_ = new QLabel(QStringLiteral("网络: 未知"));
+    networkStatusLabel_->setObjectName(QStringLiteral("StatusPill"));
+    headerRow->addWidget(networkStatusLabel_);
+    headerRow->addSpacing(6);
+    toggleSettingsButton_ = new QPushButton(QStringLiteral("展开设置"), this);
+    toggleSettingsButton_->setObjectName(QStringLiteral("SettingsToggle"));
+    toggleSettingsButton_->setFixedWidth(90);
+    connect(toggleSettingsButton_, &QPushButton::clicked, this, &QtClientWindow::ToggleSettings);
+    headerRow->addWidget(toggleSettingsButton_);
+    headerRow->addSpacing(6);
+    toggleSidebarButton_ = new QPushButton(QStringLiteral("隐藏会话"), this);
+    toggleSidebarButton_->setObjectName(QStringLiteral("SidebarToggle"));
+    toggleSidebarButton_->setFixedWidth(90);
+    connect(toggleSidebarButton_, &QPushButton::clicked, this, &QtClientWindow::ToggleSidebar);
+    headerRow->addWidget(toggleSidebarButton_);
     formLayout->addLayout(headerRow);
+
     alertBanner_ = new QFrame(this);
     alertBanner_->setObjectName(QStringLiteral("AlertBanner"));
     auto* alertLayout = new QHBoxLayout(alertBanner_);
@@ -517,63 +593,24 @@ void QtClientWindow::BuildUi()
     alertLayout->addWidget(alertRetryButton_);
     alertBanner_->setVisible(false);
     formLayout->addWidget(alertBanner_);
-    auto topRow = new QHBoxLayout();
-    topRow->addWidget(new QLabel(QStringLiteral("服务器")));
-    topRow->addWidget(serverEdit_);
-    topRow->addWidget(new QLabel(QStringLiteral("目标 Session")));
-    topRow->addWidget(targetSpin_);
-    formLayout->addLayout(topRow);
 
-    auto credRow = new QHBoxLayout();
-    credRow->addWidget(new QLabel(QStringLiteral("用户名")));
-    credRow->addWidget(userEdit_);
-    credRow->addWidget(new QLabel(QStringLiteral("密码")));
-    credRow->addWidget(passEdit_);
-    formLayout->addLayout(credRow);
-
-    auto modeRow = new QHBoxLayout();
-    modeRow->addWidget(new QLabel(QStringLiteral("撤回选项")));
-    modeRow->addWidget(revokeCheck_);
-    reconnectSpin_ = new QSpinBox(this);
-    reconnectSpin_->setRange(0, 10);
-    reconnectSpin_->setValue(2);
-    reconnectDelaySpin_ = new QSpinBox(this);
-    reconnectDelaySpin_->setRange(100, 10000);
-    reconnectDelaySpin_->setValue(2000);
-    modeRow->addWidget(new QLabel(QStringLiteral("重连次数")));
-    modeRow->addWidget(reconnectSpin_);
-    modeRow->addWidget(new QLabel(QStringLiteral("间隔ms")));
-    modeRow->addWidget(reconnectDelaySpin_);
-    modeRow->addStretch();
-    formLayout->addLayout(modeRow);
-
-    auto mediaRow = new QHBoxLayout();
-    mediaRow->addWidget(new QLabel(QStringLiteral("媒体文件")));
-    mediaRow->addWidget(mediaEdit_);
-    mediaRow->addWidget(browseButton_);
-    formLayout->addLayout(mediaRow);
-    auto mediaProgressRow = new QHBoxLayout();
-    mediaProgressRow->addWidget(mediaProgress_, 3);
-    mediaProgressRow->addWidget(mediaStatusLabel_, 2);
-    mediaProgressRow->addWidget(speedStatusLabel_, 1);
-    mediaProgressRow->addWidget(speedPeakLabel_, 1);
-    mediaProgressRow->addWidget(statsRefreshButton_, 1);
-    formLayout->addLayout(mediaProgressRow);
-    auto statsRow = new QHBoxLayout();
-    statsRow->addWidget(statsHistoryChart_, 4);
-    statsRow->addWidget(speedSparkline_, 1);
-    formLayout->addLayout(statsRow);
-
-    formLayout->addWidget(new QLabel(QStringLiteral("消息内容")));
-    formLayout->addWidget(messageEdit_);
-
-    formLayout->addWidget(new QLabel(QStringLiteral("对话流")));
+    formLayout->addWidget(new QLabel(QStringLiteral("会话流")));
     messageView_ = new QListWidget(this);
     messageView_->setFrameShape(QFrame::NoFrame);
     messageView_->setSpacing(8);
     messageView_->setSelectionMode(QAbstractItemView::NoSelection);
     messageView_->setVerticalScrollMode(QAbstractItemView::ScrollPerPixel);
-    formLayout->addWidget(messageView_);
+    formLayout->addWidget(messageView_, 1);
+
+    auto composerPanel = new QFrame(this);
+    composerPanel->setObjectName(QStringLiteral("Composer"));
+    auto* composerLayout = new QVBoxLayout(composerPanel);
+    auto* mediaRow = new QHBoxLayout();
+    mediaRow->addWidget(new QLabel(QStringLiteral("附件")));
+    mediaRow->addWidget(mediaEdit_);
+    mediaRow->addWidget(browseButton_);
+    composerLayout->addLayout(mediaRow);
+    composerLayout->addWidget(messageEdit_);
 
     auto actionRow = new QHBoxLayout();
     actionRow->addWidget(emojiButton_);
@@ -583,29 +620,198 @@ void QtClientWindow::BuildUi()
     actionRow->addStretch();
     actionRow->addWidget(startButton_);
     actionRow->addWidget(stopButton_);
-    formLayout->addLayout(actionRow);
+    composerLayout->addLayout(actionRow);
 
-    formLayout->addWidget(new QLabel(QStringLiteral("运行日志")));
-    formLayout->addWidget(logEdit_);
+    auto mediaProgressRow = new QHBoxLayout();
+    mediaProgressRow->addWidget(mediaProgress_, 3);
+    mediaProgressRow->addWidget(mediaStatusLabel_, 2);
+    mediaProgressRow->addWidget(speedStatusLabel_, 1);
+    mediaProgressRow->addWidget(speedPeakLabel_, 1);
+    composerLayout->addLayout(mediaProgressRow);
+    formLayout->addWidget(composerPanel);
+
+    settingsPanel_ = new QFrame(this);
+    settingsPanel_->setObjectName(QStringLiteral("SettingsPanel"));
+    settingsPanel_->setMinimumWidth(0);
+    settingsPanel_->setMinimumSize(0, 0);
+    auto* settingsLayout = new QVBoxLayout(settingsPanel_);
+    auto* settingsTitle = new QLabel(QStringLiteral("侧栏 / 设置"), settingsPanel_);
+    settingsTitle->setObjectName(QStringLiteral("SidebarTitle"));
+    settingsLayout->addWidget(settingsTitle);
+    settingsTabs_ = new QTabWidget(this);
+    settingsTabs_->setObjectName(QStringLiteral("SettingsTabs"));
+
+    QWidget* connPage = new QWidget(this);
+    auto* connLayout = new QVBoxLayout(connPage);
+    auto* serverRow = new QHBoxLayout();
+    serverRow->addWidget(new QLabel(QStringLiteral("服务器")));
+    serverRow->addWidget(serverEdit_);
+    connLayout->addLayout(serverRow);
+    auto* sessionRow = new QHBoxLayout();
+    sessionRow->addWidget(new QLabel(QStringLiteral("目标 Session")));
+    sessionRow->addWidget(targetSpin_);
+    sessionRow->addStretch();
+    connLayout->addLayout(sessionRow);
+    auto* credRow = new QHBoxLayout();
+    credRow->addWidget(new QLabel(QStringLiteral("用户名")));
+    credRow->addWidget(userEdit_);
+    credRow->addWidget(new QLabel(QStringLiteral("密码")));
+    credRow->addWidget(passEdit_);
+    connLayout->addLayout(credRow);
+    connLayout->addStretch();
+    settingsTabs_->addTab(connPage, QStringLiteral("连接"));
+
+    QWidget* sendPage = new QWidget(this);
+    auto* sendLayout = new QVBoxLayout(sendPage);
+    auto* modeRow = new QHBoxLayout();
+    modeRow->addWidget(new QLabel(QStringLiteral("消息模式")));
+    modeRow->addWidget(modeCombo_);
+    modeRow->addWidget(new QLabel(QStringLiteral("自动撤回")));
+    modeRow->addWidget(revokeCheck_);
+    modeRow->addStretch();
+    sendLayout->addLayout(modeRow);
+    auto* retryRow = new QHBoxLayout();
+    retryRow->addWidget(new QLabel(QStringLiteral("重连次数")));
+    retryRow->addWidget(reconnectSpin_);
+    retryRow->addWidget(new QLabel(QStringLiteral("间隔ms")));
+    retryRow->addWidget(reconnectDelaySpin_);
+    retryRow->addStretch();
+    sendLayout->addLayout(retryRow);
+    auto* statsHeader = new QHBoxLayout();
+    statsHeader->addWidget(new QLabel(QStringLiteral("传输统计历史")));
+    statsHeader->addStretch();
+    statsHeader->addWidget(statsRefreshButton_);
+    sendLayout->addLayout(statsHeader);
+    auto* statsRow = new QHBoxLayout();
+    statsRow->addWidget(statsHistoryChart_, 3);
+    statsRow->addWidget(speedSparkline_, 1);
+    sendLayout->addLayout(statsRow);
+    sendLayout->addStretch();
+    settingsTabs_->addTab(sendPage, QStringLiteral("消息"));
+
+    QWidget* appearancePage = new QWidget(this);
+    auto* appearanceLayout = new QVBoxLayout(appearancePage);
+    auto* themeRow = new QHBoxLayout();
+    themeRow->addWidget(new QLabel(QStringLiteral("主题")));
+    themeRow->addWidget(themeSwitch_);
+    themeRow->addWidget(new QLabel(QStringLiteral("主色")));
+    themeRow->addWidget(accentSwitch_);
+    themeRow->addStretch();
+    appearanceLayout->addLayout(themeRow);
+    auto* paletteRow = new QHBoxLayout();
+    paletteRow->addWidget(new QLabel(QStringLiteral("色板合集")));
+    paletteRow->addWidget(paletteGroupBox_);
+    paletteRow->addWidget(accentPaletteBox_);
+    paletteRow->addStretch();
+    appearanceLayout->addLayout(paletteRow);
+    auto* customRow = new QHBoxLayout();
+    customRow->addWidget(new QLabel(QStringLiteral("自定义")));
+    customRow->addWidget(accentInput_);
+    auto* applyAccentBtn = new QPushButton(QStringLiteral("应用色"), this);
+    customRow->addWidget(applyAccentBtn);
+    customRow->addWidget(accentAddButton_);
+    customRow->addStretch();
+    appearanceLayout->addLayout(customRow);
+    paletteSwatchLayout_ = new QHBoxLayout();
+    paletteSwatchLayout_->setContentsMargins(0, 4, 0, 4);
+    paletteSwatchLayout_->setSpacing(6);
+    auto* paletteSwatchContainer = new QWidget(this);
+    paletteSwatchContainer->setLayout(paletteSwatchLayout_);
+    appearanceLayout->addWidget(paletteSwatchContainer);
+    appearanceLayout->addStretch();
+    settingsTabs_->addTab(appearancePage, QStringLiteral("外观"));
+
+    QWidget* diagPage = new QWidget(this);
+    auto* diagLayout = new QVBoxLayout(diagPage);
+    diagLayout->addWidget(new QLabel(QStringLiteral("运行日志")));
+    diagLayout->addWidget(logEdit_);
+    settingsTabs_->addTab(diagPage, QStringLiteral("诊断"));
+
+    connect(applyAccentBtn, &QPushButton::clicked, this, [this]() {
+        const QString val = accentInput_->text().trimmed();
+        if (!val.startsWith('#') || val.length() < 4)
+        {
+            return;
+        }
+        accentColor_ = val;
+        ApplyTheme();
+        SaveSettings();
+    });
+    settingsLayout->addWidget(settingsTabs_);
+
+    // 登录页
+    loginPage_ = new QFrame(this);
+    loginPage_->setObjectName(QStringLiteral("LoginPage"));
+    auto* loginLayout = new QVBoxLayout(loginPage_);
+    loginLayout->setContentsMargins(120, 80, 120, 80);
+    loginLayout->setSpacing(18);
+    auto* loginTitle = new QLabel(QStringLiteral("Mi 聊天 · 登录"));
+    loginTitle->setObjectName(QStringLiteral("Headline"));
+    loginTitle->setAlignment(Qt::AlignHCenter);
+    loginServerLabel_ = new QLabel(QStringLiteral("服务器：") + defaultServer, this);
+    loginServerLabel_->setAlignment(Qt::AlignHCenter);
+    loginUserEdit_ = new QLineEdit(QStringLiteral("user"), this);
+    loginUserEdit_->setPlaceholderText(QStringLiteral("账号"));
+    loginUserEdit_->setClearButtonEnabled(true);
+    loginPassEdit_ = new QLineEdit(QStringLiteral("pass"), this);
+    loginPassEdit_->setPlaceholderText(QStringLiteral("密码"));
+    loginPassEdit_->setEchoMode(QLineEdit::Password);
+    loginPassEdit_->setClearButtonEnabled(true);
+    loginRemember_ = new QCheckBox(QStringLiteral("记住账号"), this);
+    QPushButton* loginBtn = new QPushButton(QStringLiteral("进入聊天"), this);
+    loginBtn->setDefault(true);
+    loginBtn->setObjectName(QStringLiteral("PrimaryButton"));
+    connect(loginBtn, &QPushButton::clicked, this, &QtClientWindow::ApplyLogin);
+    connect(loginPassEdit_, &QLineEdit::returnPressed, this, &QtClientWindow::ApplyLogin);
+    connect(loginUserEdit_, &QLineEdit::returnPressed, this, &QtClientWindow::ApplyLogin);
+    auto* loginCenter = new QVBoxLayout();
+    loginCenter->setSpacing(12);
+    loginCenter->addWidget(loginTitle, 0, Qt::AlignHCenter);
+    loginCenter->addWidget(loginServerLabel_, 0, Qt::AlignHCenter);
+    loginCenter->addSpacing(10);
+    loginCenter->addWidget(loginUserEdit_);
+    loginCenter->addWidget(loginPassEdit_);
+    loginCenter->addWidget(loginRemember_);
+    loginCenter->addSpacing(4);
+    loginCenter->addWidget(loginBtn);
+    loginCenter->addStretch();
+    loginLayout->addStretch();
+    loginLayout->addLayout(loginCenter);
+    loginLayout->addStretch();
 
     hSplit_ = new QSplitter(Qt::Horizontal, this);
     hSplit_->addWidget(sidebar_);
     hSplit_->addWidget(mainPanel_);
+    hSplit_->addWidget(settingsPanel_);
     hSplit_->setStretchFactor(0, 1);
     hSplit_->setStretchFactor(1, 3);
+    hSplit_->setStretchFactor(2, 2);
+    hSplit_->setCollapsible(0, true);
+    hSplit_->setCollapsible(2, true);
+    hSplit_->setSizes(QList<int>({240, 780, 0}));
+    settingsCollapsed_ = true;
+    if (toggleSettingsButton_ != nullptr)
+    {
+        toggleSettingsButton_->setText(QStringLiteral("展开设置"));
+    }
+
+    mainStack_ = new QStackedWidget(this);
+    mainStack_->addWidget(loginPage_);
+    mainStack_->addWidget(hSplit_);
+    mainStack_->setCurrentWidget(loginPage_);
 
     auto root = new QHBoxLayout(this);
-    root->addWidget(hSplit_);
+    root->addWidget(mainStack_);
     setLayout(root);
-    resize(860, 620);
+    resize(1180, 720);
 
     auto* sendShortcut = new QShortcut(QKeySequence(Qt::CTRL | Qt::Key_Return), this);
     connect(sendShortcut, &QShortcut::activated, this, &QtClientWindow::OnStartClicked);
     auto* sendShortcut2 = new QShortcut(QKeySequence(Qt::CTRL | Qt::Key_Enter), this);
     connect(sendShortcut2, &QShortcut::activated, this, &QtClientWindow::OnStartClicked);
     emojiMenu_ = new QMenu(this);
-    const QStringList emojis = {QStringLiteral("😀"), QStringLiteral("😉"), QStringLiteral("😂"), QStringLiteral("🥰"),
-                                QStringLiteral("👍"), QStringLiteral("🎉"), QStringLiteral("🔥"), QStringLiteral("❤️")};
+    const QStringList emojis = {QStringLiteral("😀"), QStringLiteral("😎"), QStringLiteral("🤖"), QStringLiteral("🚀"),
+                                QStringLiteral("🎉"), QStringLiteral("❤️"), QStringLiteral("👍"), QStringLiteral("🔥")};
     for (const auto& e : emojis)
     {
         QAction* act = emojiMenu_->addAction(e);
@@ -662,12 +868,32 @@ void QtClientWindow::BuildUi()
     {
         accentInput_->setText(accentColor_);
     }
+    UpdateAccountUi();
     ApplyTheme();
     if (sidebarCollapsed_)
     {
+        sidebarCollapsed_ = false;
         ToggleSidebar();
     }
+    if (!settingsCollapsed_)
+    {
+        settingsCollapsed_ = true;
+        ToggleSettings();
+    }
+    if (loginRemember_ && loginRemember_->isChecked())
+    {
+        loggedIn_ = true;
+        if (mainStack_ && hSplit_)
+        {
+            mainStack_->setCurrentWidget(hSplit_);
+        }
+    }
+    else if (mainStack_ && loginPage_)
+    {
+        mainStack_->setCurrentWidget(loginPage_);
+    }
 }
+
 
 void QtClientWindow::ApplyStyle()
 {
@@ -693,7 +919,7 @@ void QtClientWindow::ApplyTheme()
             padding: 14px;
             min-width: 220px;
         }
-        QFrame#MainPanel {
+        QFrame#ChatPanel, QFrame#SettingsPanel {
             background: %3;
             border: 1px solid %4;
             border-radius: 14px;
@@ -708,8 +934,8 @@ void QtClientWindow::ApplyTheme()
             border: 1px solid %4;
             color: #38bdf8;
         }
-        QPushButton#SidebarToggle { background: transparent; color: #cbd5e1; border: 1px solid %4; padding: 8px 10px; }
-        QPushButton#SidebarToggle:hover { background: %4; }
+        QPushButton#SidebarToggle, QPushButton#SettingsToggle { background: transparent; color: #cbd5e1; border: 1px solid %4; padding: 8px 10px; }
+        QPushButton#SidebarToggle:hover, QPushButton#SettingsToggle:hover { background: %4; }
         QListWidget { background: %3; border: 1px solid %4; border-radius: 8px; color: %2; }
         QListWidget::item:selected { background: %4; }
         QLineEdit, QPlainTextEdit, QComboBox, QSpinBox {
@@ -1998,6 +2224,114 @@ void QtClientWindow::FetchStatsHistory()
     });
 }
 
+void QtClientWindow::ShowLoginPage()
+{
+    loggedIn_ = false;
+    if (loginUserEdit_ && userEdit_)
+    {
+        loginUserEdit_->setText(userEdit_->text());
+    }
+    if (loginPassEdit_ && passEdit_)
+    {
+        loginPassEdit_->setText(passEdit_->text());
+    }
+    if (mainStack_ && loginPage_)
+    {
+        mainStack_->setCurrentWidget(loginPage_);
+    }
+}
+
+void QtClientWindow::ApplyLogin()
+{
+    const QString server = DefaultServerAddress();
+    if (serverEdit_)
+    {
+        serverEdit_->setText(server);
+    }
+    if (loginUserEdit_ && userEdit_)
+    {
+        userEdit_->setText(loginUserEdit_->text().trimmed());
+    }
+    if (loginPassEdit_ && passEdit_)
+    {
+        passEdit_->setText(loginPassEdit_->text());
+    }
+    loggedIn_ = true;
+    UpdateAccountUi();
+    if (mainStack_ && hSplit_)
+    {
+        mainStack_->setCurrentWidget(hSplit_);
+    }
+    if (statusLabel_)
+    {
+        statusLabel_->setText(QStringLiteral("状态：已登录"));
+    }
+    SaveSettings();
+}
+
+void QtClientWindow::UpdateAccountUi()
+{
+    const QString server = serverEdit_ ? serverEdit_->text() : DefaultServerAddress();
+    QString user = userEdit_ ? userEdit_->text() : QString();
+    if (user.trimmed().isEmpty())
+    {
+        user = QStringLiteral("未登录");
+    }
+    if (accountLabel_)
+    {
+        accountLabel_->setText(QStringLiteral("账户: %1 @ %2").arg(user, server));
+    }
+    if (accountNameLabel_)
+    {
+        accountNameLabel_->setText(user);
+    }
+    if (accountServerLabel_)
+    {
+        accountServerLabel_->setText(server);
+    }
+}
+
+void QtClientWindow::ToggleSettings()
+{
+    if (hSplit_ == nullptr || settingsPanel_ == nullptr)
+    {
+        return;
+    }
+    QList<int> sizes = hSplit_->sizes();
+    if (sizes.size() < 3)
+    {
+        sizes = {220, 780, 0};
+    }
+    if (settingsCollapsed_)
+    {
+        const int targetWidth = lastSettingsWidth_ > 0 ? lastSettingsWidth_ : 280;
+        sizes[2] = targetWidth;
+        if (sizes[1] < 420)
+        {
+            sizes[1] = 420;
+        }
+        hSplit_->setSizes(sizes);
+        settingsCollapsed_ = false;
+        if (toggleSettingsButton_ != nullptr)
+        {
+            toggleSettingsButton_->setText(QStringLiteral("隐藏设置"));
+        }
+    }
+    else
+    {
+        lastSettingsWidth_ = sizes.value(2, lastSettingsWidth_);
+        sizes[1] = sizes.value(1, 700) + sizes.value(2, 0) / 2;
+        sizes[2] = 0;
+        hSplit_->setSizes(sizes);
+        settingsCollapsed_ = true;
+        if (toggleSettingsButton_ != nullptr)
+        {
+            toggleSettingsButton_->setText(QStringLiteral("展开设置"));
+        }
+    }
+    SaveSettings();
+}
+
 void QtClientWindow::ToggleSidebar()
 {
     if (hSplit_ == nullptr || sidebar_ == nullptr)
@@ -2006,9 +2340,9 @@ void QtClientWindow::ToggleSidebar()
     }
     sidebarCollapsed_ = !sidebarCollapsed_;
     QList<int> sizes = hSplit_->sizes();
-    if (sizes.size() < 2)
+    if (sizes.size() < 3)
     {
-        sizes = {200, 600};
+        sizes = {200, 680, 320};
     }
     QPropertyAnimation* anim = new QPropertyAnimation(hSplit_, "sizes");
     anim->setDuration(220);
@@ -2017,14 +2351,16 @@ void QtClientWindow::ToggleSidebar()
     if (sidebarCollapsed_)
     {
         anim->setStartValue(QVariant::fromValue(sizes));
-        anim->setEndValue(QVariant::fromValue(QList<int>({0, sizes[0] + sizes[1]})));
-        toggleSidebarButton_->setText(QStringLiteral("展开侧栏"));
+        anim->setEndValue(QVariant::fromValue(QList<int>({0, sizes[1] + sizes[0] / 2, sizes.value(2, 320)})));
+        toggleSidebarButton_->setText(QStringLiteral("展开会话"));
     }
     else
     {
-        anim->setStartValue(QVariant::fromValue(QList<int>({0, sizes[0] + sizes[1]})));
-        anim->setEndValue(QVariant::fromValue(QList<int>({220, std::max(320, sizes[1])})));
-        toggleSidebarButton_->setText(QStringLiteral("折叠侧栏"));
+        const int chatSize = std::max(420, sizes.value(1, 680));
+        const int settingsSize = sizes.value(2, 320);
+        anim->setStartValue(QVariant::fromValue(QList<int>({0, chatSize, settingsSize})));
+        anim->setEndValue(QVariant::fromValue(QList<int>({220, chatSize, settingsSize})));
+        toggleSidebarButton_->setText(QStringLiteral("隐藏会话"));
     }
     anim->start(QAbstractAnimation::DeleteWhenStopped);
     SaveSettings();
@@ -2113,6 +2449,10 @@ void QtClientWindow::SaveSettings()
     obj.insert(QStringLiteral("darkTheme"), darkTheme_);
     obj.insert(QStringLiteral("accent"), accentColor_);
     obj.insert(QStringLiteral("sidebarCollapsed"), sidebarCollapsed_);
+    obj.insert(QStringLiteral("settingsCollapsed"), settingsCollapsed_);
+    obj.insert(QStringLiteral("settingsWidth"), lastSettingsWidth_);
+    obj.insert(QStringLiteral("loginRemember"), loginRemember_ ? loginRemember_->isChecked() : false);
+    obj.insert(QStringLiteral("loginUser"), userEdit_ ? userEdit_->text() : QString());
     obj.insert(QStringLiteral("paletteGroup"), currentPaletteGroup_);
     QJsonArray palette;
     for (const auto& c : customPalette_)
@@ -2204,6 +2544,10 @@ void QtClientWindow::LoadSettings()
     darkTheme_ = obj.value(QStringLiteral("darkTheme")).toBool(true);
     accentColor_ = obj.value(QStringLiteral("accent")).toString(accentColor_);
     sidebarCollapsed_ = obj.value(QStringLiteral("sidebarCollapsed")).toBool(false);
+    settingsCollapsed_ = obj.value(QStringLiteral("settingsCollapsed")).toBool(true);
+    lastSettingsWidth_ = obj.value(QStringLiteral("settingsWidth")).toInt(lastSettingsWidth_);
+    const bool rememberUser = obj.value(QStringLiteral("loginRemember")).toBool(false);
+    const QString savedUser = obj.value(QStringLiteral("loginUser")).toString();
     currentPaletteGroup_ = obj.value(QStringLiteral("paletteGroup")).toString(currentPaletteGroup_);
     const auto paletteVal = obj.value(QStringLiteral("palette"));
     if (paletteVal.isArray())
@@ -2223,15 +2567,30 @@ void QtClientWindow::LoadSettings()
     }
     if (serverEdit_)
     {
-        const auto server = obj.value(QStringLiteral("server")).toString();
-        if (!server.isEmpty())
-        {
-            serverEdit_->setText(server);
-        }
+        serverEdit_->setText(DefaultServerAddress());
+    }
+    if (loginServerLabel_)
+    {
+        loginServerLabel_->setText(QStringLiteral("服务器：") + DefaultServerAddress());
     }
     if (targetSpin_)
     {
         targetSpin_->setValue(obj.value(QStringLiteral("target")).toInt(0));
+    }
+    if (loginRemember_)
+    {
+        loginRemember_->setChecked(rememberUser);
+    }
+    if (!savedUser.isEmpty())
+    {
+        if (userEdit_)
+        {
+            userEdit_->setText(savedUser);
+        }
+        if (loginUserEdit_)
+        {
+            loginUserEdit_->setText(savedUser);
+        }
     }
     if (reconnectSpin_)
     {
@@ -2276,6 +2635,12 @@ void QtClientWindow::closeEvent(QCloseEvent* event)
 
 void QtClientWindow::OnStartClicked()
 {
+    if (!loggedIn_)
+    {
+        AppendLog(QStringLiteral("[ui] 请先登录"));
+        ShowLoginPage();
+        return;
+    }
     const bool preserveHistory = preserveHistoryNextRun_;
     preserveHistoryNextRun_ = false;
     if (worker_.joinable())
