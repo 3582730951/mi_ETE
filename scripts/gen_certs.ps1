@@ -1,9 +1,9 @@
-$ErrorActionPreference = "Stop"
-
 param(
     [string]$OutputDir = "certs",
     [string]$Password = "changeit"
 )
+
+$ErrorActionPreference = "Stop"
 
 function Ensure-OpenSsl {
     $openssl = Get-Command "openssl" -ErrorAction SilentlyContinue
