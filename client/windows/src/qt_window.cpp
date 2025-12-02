@@ -159,6 +159,8 @@ QtClientWindow::QtClientWindow(QWidget* parent)
       fileActionButton_(nullptr),
       moreActionButton_(nullptr),
       headerActionsLayout_(nullptr),
+      draggingWindow_(false),
+      dragOffset_(),
       navGroup_(nullptr),
       mediaProgress_(nullptr),
       mediaStatusLabel_(nullptr),
@@ -416,8 +418,18 @@ void QtClientWindow::BuildUi()
     addButton->setFixedSize(32, 32);
     addButton->setToolTip(QStringLiteral("添加会话/群"));
     connect(addButton, &QPushButton::clicked, this, [this]() { FetchRemoteSessions(); });
+    QPushButton* minButton = new QPushButton(QStringLiteral("—"), listPanel);
+    minButton->setObjectName(QStringLiteral("GhostButton"));
+    minButton->setFixedSize(28, 28);
+    connect(minButton, &QPushButton::clicked, this, [this]() { showMinimized(); });
+    QPushButton* closeButton = new QPushButton(QStringLiteral("×"), listPanel);
+    closeButton->setObjectName(QStringLiteral("GhostButton"));
+    closeButton->setFixedSize(28, 28);
+    connect(closeButton, &QPushButton::clicked, this, [this]() { close(); });
     topBar->addWidget(sessionSearch_, 1);
     topBar->addWidget(addButton);
+    topBar->addWidget(minButton);
+    topBar->addWidget(closeButton);
     feedList_ = new QListWidget(listPanel);
     feedList_->setContextMenuPolicy(Qt::CustomContextMenu);
     connect(feedList_, &QListWidget::customContextMenuRequested, this, [this](const QPoint& pos) {
@@ -1008,6 +1020,7 @@ void QtClientWindow::BuildUi()
 
     auto root = new QHBoxLayout(this);
     root->addWidget(mainStack_);
+    setWindowFlags(Qt::FramelessWindowHint | Qt::Window);
     setLayout(root);
     // 默认进入登录页，锁定为登录尺寸
     setFixedSize(QSize(320, 448));
@@ -1253,8 +1266,8 @@ void QtClientWindow::ApplyTheme()
             background: transparent;
             color: %2;
             border: 1px solid %4;
-            border-radius: 10px;
-            padding: 6px 10px;
+            border-radius: 8px;
+            padding: 4px 8px;
         }
         QPushButton#GhostButton:hover { border-color: %5; color: %5; }
         QPushButton#StopButton { background-color: #dc2626; }
@@ -3893,4 +3906,39 @@ void QtClientWindow::SetUiEnabled(bool enabled)
     modeCombo_->setEnabled(enabled);
     revokeCheck_->setEnabled(enabled);
     mediaEdit_->setEnabled(enabled);
+}
+
+
+void QtClientWindow::mousePressEvent(QMouseEvent* event)
+{
+    if (event->button() == Qt::LeftButton && event->pos().y() <= 40)
+    {
+        draggingWindow_ = true;
+        dragOffset_ = event->globalPos() - frameGeometry().topLeft();
+        event->accept();
+        return;
+    }
+    QWidget::mousePressEvent(event);
+}
+
+void QtClientWindow::mouseMoveEvent(QMouseEvent* event)
+{
+    if (draggingWindow_)
+    {
+        move(event->globalPos() - dragOffset_);
+        event->accept();
+        return;
+    }
+    QWidget::mouseMoveEvent(event);
+}
+
+void QtClientWindow::mouseReleaseEvent(QMouseEvent* event)
+{
+    if (event->button() == Qt::LeftButton && draggingWindow_)
+    {
+        draggingWindow_ = false;
+        event->accept();
+        return;
+    }
+    QWidget::mouseReleaseEvent(event);
 }

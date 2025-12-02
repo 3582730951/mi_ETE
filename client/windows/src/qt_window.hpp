@@ -82,6 +82,9 @@ private:
     QPixmap BuildVideoPreview(const std::vector<std::uint8_t>& payload) const;
     void LoadDraft();
     void SaveDraft();
+    void mousePressEvent(QMouseEvent* event) override;
+    void mouseMoveEvent(QMouseEvent* event) override;
+    void mouseReleaseEvent(QMouseEvent* event) override;
     void LoadSessionCache();
     void PersistSessionsToFile(const QJsonArray& arr);
     QJsonArray BuildDemoSessions() const;
@@ -154,6 +157,8 @@ private:
     QPushButton* fileActionButton_;
     QPushButton* moreActionButton_;
     QHBoxLayout* headerActionsLayout_;
+    bool draggingWindow_{false};
+    QPoint dragOffset_;
     QButtonGroup* navGroup_;
     QProgressBar* mediaProgress_;
     QLabel* mediaStatusLabel_;
