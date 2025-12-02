@@ -943,7 +943,7 @@ void QtClientWindow::BuildUi()
     loginPage_ = new QFrame(this);
     loginPage_->setObjectName(QStringLiteral("LoginPage"));
     auto* loginLayout = new QVBoxLayout(loginPage_);
-    loginLayout->setContentsMargins(40, 48, 40, 48);
+    loginLayout->setContentsMargins(24, 32, 24, 32);
     loginLayout->setSpacing(18);
     auto* loginTitle = new QLabel(QStringLiteral("Mi 聊天 · 登录"));
     loginTitle->setObjectName(QStringLiteral("Headline"));
@@ -953,18 +953,18 @@ void QtClientWindow::BuildUi()
     loginUserEdit_ = new QLineEdit(QStringLiteral("user"), this);
     loginUserEdit_->setPlaceholderText(QStringLiteral("账号"));
     loginUserEdit_->setClearButtonEnabled(true);
-    loginUserEdit_->setMaximumWidth(360);
+    loginUserEdit_->setMaximumWidth(260);
     loginPassEdit_ = new QLineEdit(QStringLiteral("pass"), this);
     loginPassEdit_->setPlaceholderText(QStringLiteral("密码"));
     loginPassEdit_->setEchoMode(QLineEdit::Password);
     loginPassEdit_->setClearButtonEnabled(true);
-    loginPassEdit_->setMaximumWidth(360);
+    loginPassEdit_->setMaximumWidth(260);
     loginRemember_ = new QCheckBox(QStringLiteral("记住账号"), this);
     QPushButton* loginBtn = new QPushButton(QStringLiteral("进入聊天"), this);
     loginBtn->setDefault(true);
     loginBtn->setObjectName(QStringLiteral("PrimaryButton"));
-    loginBtn->setMinimumWidth(320);
-    loginBtn->setMaximumWidth(360);
+    loginBtn->setMinimumWidth(240);
+    loginBtn->setMaximumWidth(260);
     connect(loginBtn, &QPushButton::clicked, this, &QtClientWindow::ApplyLogin);
     connect(loginPassEdit_, &QLineEdit::returnPressed, this, &QtClientWindow::ApplyLogin);
     connect(loginUserEdit_, &QLineEdit::returnPressed, this, &QtClientWindow::ApplyLogin);
@@ -994,7 +994,7 @@ void QtClientWindow::BuildUi()
     hSplit_->setCollapsible(0, true);
     hSplit_->setCollapsible(1, true);
     hSplit_->setCollapsible(2, true);
-    hSplit_->setSizes(QList<int>({280, 720, 0}));
+    hSplit_->setSizes(QList<int>({220, 400, 80}));
     settingsCollapsed_ = true;
     if (toggleSettingsButton_ != nullptr)
     {
@@ -1015,9 +1015,7 @@ void QtClientWindow::BuildUi()
     auto root = new QHBoxLayout(this);
     root->addWidget(mainStack_);
     setLayout(root);
-    setMinimumSize(QSize(360, 520));
-    setMaximumSize(QSize(560, 760));
-    resize(420, 640);
+    setFixedSize(QSize(320, 448));
 
     sendShortcutEnter_ = new QShortcut(QKeySequence(Qt::Key_Return), this);
     connect(sendShortcutEnter_, &QShortcut::activated, this, [this]() {
@@ -2678,9 +2676,7 @@ void QtClientWindow::ShowLoginPage()
     {
         mainStack_->setCurrentWidget(loginPage_);
     }
-    setMinimumSize(QSize(360, 520));
-    setMaximumSize(QSize(560, 760));
-    resize(420, 640);
+    setFixedSize(QSize(320, 448));
 }
 
 void QtClientWindow::ApplyLogin()
@@ -2712,8 +2708,7 @@ void QtClientWindow::ShowListPage()
 {
     currentPeer_.clear();
     currentPeerIsGroup_ = false;
-    setMaximumSize(QSize(QWIDGETSIZE_MAX, QWIDGETSIZE_MAX));
-    setMinimumSize(QSize(460, 640));
+    setFixedSize(QSize(720, 800));
     if (sessionLabel_)
     {
         sessionLabel_->setText(QStringLiteral("选择会话"));
@@ -2752,17 +2747,15 @@ void QtClientWindow::ShowListPage()
     }
     if (hSplit_)
     {
-        hSplit_->setSizes(QList<int>({320, 0, 0}));
+        hSplit_->setSizes(QList<int>({220, 500, 0}));
     }
-    resize(480, 760);
 }
 
 void QtClientWindow::ShowChatPage(const QString& peer, bool isGroup)
 {
     currentPeer_ = peer;
     currentPeerIsGroup_ = isGroup;
-    setMaximumSize(QSize(QWIDGETSIZE_MAX, QWIDGETSIZE_MAX));
-    setMinimumSize(QSize(900, 680));
+    setFixedSize(QSize(720, 800));
     if (emptyStateLabel_)
     {
         emptyStateLabel_->setVisible(false);
@@ -2808,11 +2801,10 @@ void QtClientWindow::ShowChatPage(const QString& peer, bool isGroup)
     }
     if (hSplit_)
     {
-        const int right = settingsCollapsed_ ? 0 : (lastSettingsWidth_ > 0 ? lastSettingsWidth_ : 260);
-        const int chatWidth = isGroup ? 700 : 760;
-        hSplit_->setSizes(QList<int>({300, chatWidth, right}));
+        const int right = (isGroup && !settingsCollapsed_) ? (lastSettingsWidth_ > 0 ? lastSettingsWidth_ : 160) : 0;
+        const int chatWidth = isGroup ? 420 : 500;
+        hSplit_->setSizes(QList<int>({220, chatWidth, right}));
     }
-    resize(isGroup ? 1180 : 1040, 760);
 }
 
 void QtClientWindow::UpdateAccountUi()
@@ -2852,9 +2844,9 @@ void QtClientWindow::ToggleSettings()
     {
         const int targetWidth = lastSettingsWidth_ > 0 ? lastSettingsWidth_ : 280;
         sizes[2] = targetWidth;
-        if (sizes[1] < 480)
+        if (sizes[1] < 360)
         {
-            sizes[1] = 480;
+            sizes[1] = 360;
         }
         hSplit_->setSizes(sizes);
         settingsCollapsed_ = false;
