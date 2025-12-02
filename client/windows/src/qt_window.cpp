@@ -60,6 +60,7 @@
 #if QT_VERSION < QT_VERSION_CHECK(6, 0, 0)
 #include <QNetworkConfigurationManager>
 #include <QNetworkSession>
+#include <QNetworkConfiguration>
 #endif
 #ifdef MI_ENABLE_QTMULTIMEDIA
 #include <QMediaPlayer>
