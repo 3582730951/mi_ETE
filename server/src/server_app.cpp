@@ -52,6 +52,17 @@ std::string ToUtf8(const std::wstring& text)
 #endif
 }
 
+std::string Narrow(const std::wstring& text)
+{
+    std::string out;
+    out.reserve(text.size());
+    for (wchar_t ch : text)
+    {
+        out.push_back(static_cast<char>(ch & 0xFF));
+    }
+    return out;
+}
+
 std::unordered_map<std::string, std::string> ParseQuery(const std::string& query)
 {
     std::unordered_map<std::string, std::string> params;
@@ -159,7 +170,7 @@ std::string ServerApplication::GetCertBase64() const
     // 优先配置文件，其次环境变量，均不落地
     if (!config_.certBase64.empty())
     {
-        return std::string(config_.certBase64.begin(), config_.certBase64.end());
+        return Narrow(config_.certBase64);
     }
     const char* env = std::getenv("MI_CERT_B64");
     if (env != nullptr)
@@ -173,7 +184,7 @@ std::string ServerApplication::GetCertPassword() const
 {
     if (!config_.certPassword.empty())
     {
-        return std::string(config_.certPassword.begin(), config_.certPassword.end());
+        return Narrow(config_.certPassword);
     }
     const char* env = std::getenv("MI_CERT_PWD");
     if (env != nullptr)
@@ -287,7 +298,7 @@ std::string ServerApplication::HandlePanelPath(const std::string& path)
         std::string sha;
         if (!config_.certSha256.empty())
         {
-            sha = std::string(config_.certSha256.begin(), config_.certSha256.end());
+            sha = Narrow(config_.certSha256);
         }
         else
         {
