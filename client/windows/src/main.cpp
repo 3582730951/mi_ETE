@@ -1,4 +1,5 @@
 #include <codecvt>
+#include <cwctype>
 #include <filesystem>
 #include <fstream>
 #include <iostream>
